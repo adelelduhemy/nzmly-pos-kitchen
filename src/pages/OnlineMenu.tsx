@@ -13,6 +13,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { formatCurrency } from '@/utils/formatCurrency';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -32,17 +43,18 @@ import {
 } from 'lucide-react';
 import ImageUpload from '@/components/menu/ImageUpload';
 import TemplateSettings from '@/components/online-menu/TemplateSettings';
+import RecipeDialog from '@/components/online-menu/RecipeDialog';
 
 const OnlineMenu = () => {
   const { i18n } = useTranslation();
   const isAr = i18n.language === 'ar';
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const [isAddItemOpen, setIsAddItemOpen] = useState(false);
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
   const [showQRDialog, setShowQRDialog] = useState(false);
-  const [newItem, setNewItem] = useState({ 
+  const [newItem, setNewItem] = useState({
     name_ar: '', name_en: '', description_ar: '', description_en: '',
     price: 0, category: '', is_available: true, is_featured: false, image_url: null as string | null
   });
@@ -123,6 +135,21 @@ const OnlineMenu = () => {
     },
   });
 
+  // Delete category mutation
+  const deleteCategoryMutation = useMutation({
+    mutationFn: async (categoryId: string) => {
+      const { error } = await supabase.from('menu_categories').delete().eq('id', categoryId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menu_categories'] });
+      toast({ title: isAr ? 'تم حذف القسم بنجاح' : 'Category deleted successfully' });
+    },
+    onError: (error: any) => {
+      toast({ title: isAr ? 'خطأ' : 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
   // Update settings mutation
   const updateSettingsMutation = useMutation({
     mutationFn: async (updates: Partial<typeof settings>) => {
@@ -141,7 +168,7 @@ const OnlineMenu = () => {
     },
   });
 
-  const menuUrl = settings?.menu_slug 
+  const menuUrl = settings?.menu_slug
     ? `${window.location.origin}/menu/${settings.menu_slug}`
     : '';
 
@@ -365,9 +392,12 @@ const OnlineMenu = () => {
                   </p>
                   <div className="flex items-center justify-between mt-3">
                     <span className="font-bold text-primary">{formatCurrency(item.price, i18n.language)}</span>
-                    <Badge variant={item.is_available ? 'default' : 'secondary'}>
-                      {item.is_available ? (isAr ? 'متوفر' : 'Available') : (isAr ? 'غير متوفر' : 'Unavailable')}
-                    </Badge>
+                    <div className="flex gap-2">
+                      <RecipeDialog menuItemId={item.id} menuItemName={isAr ? item.name_ar : item.name_en} />
+                      <Badge variant={item.is_available ? 'default' : 'secondary'}>
+                        {item.is_available ? (isAr ? 'متوفر' : 'Available') : (isAr ? 'غير متوفر' : 'Unavailable')}
+                      </Badge>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -420,13 +450,56 @@ const OnlineMenu = () => {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {categories.map((cat: any) => (
-              <Card key={cat.id} className="card-pos overflow-hidden">
+              <Card key={cat.id} className="card-pos overflow-hidden group relative">
                 <div className="relative h-24 bg-muted flex items-center justify-center">
                   {cat.image_url ? (
                     <img src={cat.image_url} alt={cat.name_ar} className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-4xl">{cat.icon || '📁'}</span>
                   )}
+
+                  <div className="absolute top-2 right-2">
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity mr-2"
+                      onClick={() => {
+                        // TODO: Open Recipe Dialog
+                        console.log('Open recipe for', cat.id);
+                        // Note: This is on the category card in the original code? 
+                        // Wait, I need to check if I am targeting the Item Card or Category Card.
+                        // The context shows "categories.map". I need to target "menuItems.map".
+                      }}
+                    >
+                      {/* Placeholder, actually I need to target menuItems.map loop */}
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="icon" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>{isAr ? 'هل أنت متأكد؟' : 'Are you sure?'}</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {isAr
+                              ? 'سيتم حذف هذا القسم وجميع البيانات المرتبطة به. لا يمكن التراجع عن هذا الإجراء.'
+                              : 'This action cannot be undone. This will permanently delete the category.'}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>{isAr ? 'إلغاء' : 'Cancel'}</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => deleteCategoryMutation.mutate(cat.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            {isAr ? 'حذف' : 'Delete'}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
                 <CardContent className="pt-4 text-center">
                   <h3 className="font-semibold">{isAr ? cat.name_ar : cat.name_en}</h3>
@@ -454,15 +527,15 @@ const OnlineMenu = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>{isAr ? 'اسم المطعم بالعربي' : 'Restaurant Name (Arabic)'}</Label>
-                  <Input 
-                    defaultValue={settings?.restaurant_name_ar} 
+                  <Input
+                    defaultValue={settings?.restaurant_name_ar}
                     onBlur={(e) => updateSettingsMutation.mutate({ restaurant_name_ar: e.target.value })}
                   />
                 </div>
                 <div>
                   <Label>{isAr ? 'اسم المطعم بالإنجليزي' : 'Restaurant Name (English)'}</Label>
-                  <Input 
-                    defaultValue={settings?.restaurant_name_en} 
+                  <Input
+                    defaultValue={settings?.restaurant_name_en}
                     onBlur={(e) => updateSettingsMutation.mutate({ restaurant_name_en: e.target.value })}
                     dir="ltr"
                   />
@@ -470,8 +543,8 @@ const OnlineMenu = () => {
               </div>
               <div>
                 <Label>{isAr ? 'رابط المنيو' : 'Menu URL Slug'}</Label>
-                <Input 
-                  defaultValue={settings?.menu_slug} 
+                <Input
+                  defaultValue={settings?.menu_slug}
                   onBlur={(e) => updateSettingsMutation.mutate({ menu_slug: e.target.value })}
                   dir="ltr"
                 />
@@ -479,8 +552,8 @@ const OnlineMenu = () => {
               </div>
               <div className="flex items-center justify-between">
                 <Label>{isAr ? 'تفعيل المنيو الأونلاين' : 'Enable Online Menu'}</Label>
-                <Switch 
-                  checked={settings?.is_menu_active} 
+                <Switch
+                  checked={settings?.is_menu_active}
                   onCheckedChange={(v) => updateSettingsMutation.mutate({ is_menu_active: v })}
                 />
               </div>

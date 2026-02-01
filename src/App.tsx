@@ -13,6 +13,7 @@ import Orders from "./pages/Orders";
 import MenuManagement from "./pages/MenuManagement";
 import Tables from "./pages/Tables";
 import WarehouseManagement from "./pages/WarehouseManagement";
+import Inventory from "./pages/Inventory";
 import DishManagement from "./pages/DishManagement";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
@@ -28,7 +29,7 @@ const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, loading } = useAuthContext();
-  
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -36,7 +37,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       </div>
     );
   }
-  
+
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 };
 
@@ -60,7 +61,7 @@ const AppRoutes = () => {
           <Route path="kds" element={<KDS />} />
           <Route path="menu" element={<MenuManagement />} />
           <Route path="tables" element={<Tables />} />
-          <Route path="inventory" element={<WarehouseManagement />} />
+          <Route path="inventory" element={<Inventory />} />
           <Route path="dishes" element={<DishManagement />} />
           <Route path="finance" element={<FinancialManagement />} />
           <Route path="crm" element={<CRM />} />

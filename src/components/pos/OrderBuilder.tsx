@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, Minus, Trash2, MessageSquare, X } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, Trash2, MessageSquare, X, ShoppingBag, Truck, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,11 +15,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { mockCategories, mockMenuItems, mockTables } from '@/data/mockData';
+import { mockTables } from '@/data/mockData';
 import { useOrderStore } from '@/store/orderStore';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { MenuItem, MenuVariant, MenuModifier } from '@/types';
 import PaymentScreen from './PaymentScreen';
+import { useMenuItems, MenuItemFromDB } from '@/hooks/useMenuItems';
 import CustomerSelector from './CustomerSelector';
 
 interface OrderBuilderProps {
@@ -43,7 +44,26 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({ onBack }) => {
     getTotal,
   } = useOrderStore();
 
-  const [selectedCategory, setSelectedCategory] = useState(mockCategories[0].id);
+  const { data: menuItemsFromDB = [], isLoading: menuItemsLoading } = useMenuItems();
+
+  // Convert DB menu items to MenuItem format
+  const menuItems = menuItemsFromDB.map((dbItem): MenuItem => ({
+    id: dbItem.id,
+    nameEn: dbItem.name_en,
+    nameAr: dbItem.name_ar,
+    descriptionEn: dbItem.description_en || '',
+    descriptionAr: dbItem.description_ar || '',
+    basePrice: Number(dbItem.price),
+    categoryId: dbItem.category,
+    isActive: dbItem.is_available,
+    variants: [],
+    modifiers: [],
+  }));
+
+  // Get unique categories from menu items
+  const categories = Array.from(new Set(menuItems.map(item => item.categoryId)));
+
+  const [selectedCategory, setSelectedCategory] = useState<string>(categories[0] || '');
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [customizationOpen, setCustomizationOpen] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
@@ -56,7 +76,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({ onBack }) => {
   const [itemQuantity, setItemQuantity] = useState(1);
 
   const selectedTable = mockTables.find((t) => t.id === selectedTableId);
-  const filteredItems = mockMenuItems.filter((item) => item.categoryId === selectedCategory && item.isActive);
+  const filteredItems = menuItems.filter((item) => item.categoryId === selectedCategory && item.isActive);
 
   const openCustomization = (item: MenuItem) => {
     setSelectedItem(item);
@@ -104,32 +124,49 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({ onBack }) => {
           <Button variant="ghost" size="icon" onClick={onBack}>
             <ArrowLeft className={cn('w-5 h-5', isRTL && 'rotate-180')} />
           </Button>
-          <div>
-            <h2 className="text-xl font-bold">
-              {currentOrderType === 'dine-in' && selectedTable
-                ? `${t('kds.table')} ${selectedTable.number}`
-                : t(`pos.${currentOrderType}`)}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {items.length} {t('kds.items')}
-            </p>
+          <div className="flex gap-2">
+            <Button
+              variant={currentOrderType === 'takeaway' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                useOrderStore.getState().setOrderType('takeaway');
+                onBack(); // Go back to table selection
+              }}
+              className="gap-2"
+            >
+              <Users className="w-4 h-4" />
+              {selectedTable ? `${t('kds.table')} ${selectedTable.number}` : t('pos.takeaway')}
+            </Button>
+            <Button
+              variant={currentOrderType === 'delivery' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                useOrderStore.getState().setOrderType('delivery');
+                useOrderStore.getState().setSelectedTable(null);
+              }}
+              className="gap-2"
+            >
+              <Truck className="w-4 h-4" />
+              {t('pos.delivery')}
+            </Button>
+
           </div>
         </div>
 
         {/* Categories */}
         <div className="mb-4 overflow-x-auto">
           <div className="flex gap-2 pb-2">
-            {mockCategories.map((category) => (
+            {categories.map((category) => (
               <Button
-                key={category.id}
-                variant={selectedCategory === category.id ? 'default' : 'outline'}
+                key={category}
+                variant={selectedCategory === category ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setSelectedCategory(category.id)}
+                onClick={() => setSelectedCategory(category)}
                 className="whitespace-nowrap"
               >
-                {isRTL ? category.nameAr : category.nameEn}
+                {category}
                 <Badge variant="secondary" className="ml-2">
-                  {mockMenuItems.filter((i) => i.categoryId === category.id).length}
+                  {menuItems.filter((i) => i.categoryId === category).length}
                 </Badge>
               </Button>
             ))}

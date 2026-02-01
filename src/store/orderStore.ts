@@ -34,12 +34,12 @@ const calculateItemPrice = (
 };
 
 export const useOrderStore = create<OrderStore>((set, get) => ({
-  currentOrderType: 'dine-in',
+  currentOrderType: 'takeaway',
   selectedTableId: null,
   items: [],
 
   setOrderType: (type) => set({ currentOrderType: type }),
-  
+
   setSelectedTable: (tableId) => set({ selectedTableId: tableId }),
 
   addItem: (menuItem, quantity, variant, modifiers = [], notes) => {
@@ -78,8 +78,8 @@ export const useOrderStore = create<OrderStore>((set, get) => ({
   clearOrder: () => set({ items: [], selectedTableId: null }),
 
   getSubtotal: () => get().items.reduce((sum, item) => sum + item.totalPrice, 0),
-  
+
   getVAT: () => get().getSubtotal() * 0.15,
-  
+
   getTotal: () => get().getSubtotal() + get().getVAT(),
 }));

@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { useOrderStore } from '@/store/orderStore';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { useToast } from '@/hooks/use-toast';
+import { useCreateOrder } from '@/hooks/useCreateOrder';
 
 interface PaymentScreenProps {
   onBack: () => void;
@@ -24,10 +25,10 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack }) => {
   const isRTL = i18n.language === 'ar';
 
   const { items, getSubtotal, getVAT, getTotal, clearOrder, currentOrderType, selectedTableId } = useOrderStore();
+  const createOrder = useCreateOrder();
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [amountTendered, setAmountTendered] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
 
   const total = getTotal();
@@ -40,7 +41,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack }) => {
     { method: 'online', icon: Smartphone, labelKey: 'payment.online' },
   ];
 
-  const handleCompletePayment = () => {
+  const handleCompletePayment = async () => {
     if (paymentMethod === 'cash' && change < 0) {
       toast({
         title: 'Insufficient Amount',
@@ -50,15 +51,33 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack }) => {
       return;
     }
 
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      setIsComplete(true);
-      toast({
-        title: 'Payment Complete!',
-        description: 'Order has been sent to the kitchen.',
+    try {
+      // Map order items to include menu_item_id for automatic inventory deduction
+      const orderItems = items.map((item) => ({
+        menuItemId: item.menuItem.id, // This is the menu_item.id from mockMenuItems
+        dishName: isRTL ? item.menuItem.nameAr : item.menuItem.nameEn,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+        notes: item.notes,
+      }));
+
+      await createOrder.mutateAsync({
+        orderType: currentOrderType,
+        tableNumber: selectedTableId,
+        subtotal: getSubtotal(),
+        vat: getVAT(),
+        discount: 0,
+        total: getTotal(),
+        paymentMethod,
+        items: orderItems,
       });
-    }, 1500);
+
+      setIsComplete(true);
+    } catch (error) {
+      console.error('Payment error:', error);
+      // Error toast is handled by the mutation
+    }
   };
 
   const handleNewOrder = () => {
@@ -236,9 +255,9 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack }) => {
             <Button
               className="w-full h-14 text-lg"
               onClick={handleCompletePayment}
-              disabled={isProcessing || (paymentMethod === 'cash' && change < 0)}
+              disabled={createOrder.isPending || (paymentMethod === 'cash' && change < 0)}
             >
-              {isProcessing ? (
+              {createOrder.isPending ? (
                 <div className="w-6 h-6 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>

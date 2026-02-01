@@ -16,12 +16,11 @@ const POS = () => {
   const isRTL = i18n.language === 'ar';
   const [step, setStep] = useState<POSStep>('table-selection');
   const [sectionFilter, setSectionFilter] = useState<'all' | 'indoor' | 'outdoor'>('all');
-  
+
   const { currentOrderType, setOrderType, selectedTableId, setSelectedTable } = useOrderStore();
 
   const orderTypes: { type: OrderType; icon: React.ElementType; labelKey: string }[] = [
-    { type: 'dine-in', icon: Users, labelKey: 'pos.selectTable' },
-    { type: 'takeaway', icon: ShoppingBag, labelKey: 'pos.takeaway' },
+    { type: 'takeaway', icon: Users, labelKey: 'pos.takeaway' },
     { type: 'delivery', icon: Truck, labelKey: 'pos.delivery' },
   ];
 
@@ -56,9 +55,11 @@ const POS = () => {
 
   const handleQuickOrderType = (type: OrderType) => {
     setOrderType(type);
-    if (type !== 'dine-in') {
-      setSelectedTable(null);
+    if (type === 'delivery') {
+      setSelectedTable(null); // Clear any selected table
       setStep('order-builder');
+    } else {
+      setStep('table-selection');
     }
   };
 
@@ -100,8 +101,8 @@ const POS = () => {
             {section === 'all'
               ? t('pos.allSections')
               : section === 'indoor'
-              ? t('pos.indoor')
-              : t('pos.outdoor')}
+                ? t('pos.indoor')
+                : t('pos.outdoor')}
           </Button>
         ))}
       </div>

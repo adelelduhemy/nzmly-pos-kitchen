@@ -30,6 +30,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack }) => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [amountTendered, setAmountTendered] = useState('');
   const [isComplete, setIsComplete] = useState(false);
+  const [completedOrder, setCompletedOrder] = useState<any>(null);
 
   const total = getTotal();
   const change = parseFloat(amountTendered || '0') - total;
@@ -73,6 +74,19 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack }) => {
         items: orderItems,
       });
 
+      // Store order data for receipt
+      setCompletedOrder({
+        orderNumber: 'Generated', // Will be from response
+        items: orderItems,
+        subtotal: getSubtotal(),
+        vat: getVAT(),
+        total: getTotal(),
+        paymentMethod,
+        amountTendered: paymentMethod === 'cash' ? parseFloat(amountTendered) : getTotal(),
+        change: paymentMethod === 'cash' ? change : 0,
+        date: new Date(),
+      });
+
       setIsComplete(true);
     } catch (error) {
       console.error('Payment error:', error);
@@ -81,43 +95,143 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack }) => {
   };
 
   const handleNewOrder = () => {
+    setIsComplete(false);
+    setCompletedOrder(null);
     clearOrder();
-    navigate('/pos');
+    onBack(); // Use onBack instead of navigate to properly return to OrderBuilder
   };
 
   if (isComplete) {
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="flex items-center justify-center min-h-[60vh]"
-      >
-        <Card className="card-pos max-w-md w-full text-center">
-          <CardContent className="p-8">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring' }}
-              className="w-20 h-20 bg-success/20 rounded-full mx-auto mb-6 flex items-center justify-center"
-            >
-              <Check className="w-10 h-10 text-success" />
-            </motion.div>
-            <h2 className="text-2xl font-bold mb-2">{t('payment.title')} Complete!</h2>
-            <p className="text-muted-foreground mb-6">
-              Order sent to kitchen successfully.
-            </p>
-            <div className="space-y-3">
-              <Button className="w-full" onClick={handleNewOrder}>
-                Start New Order
-              </Button>
-              <Button variant="outline" className="w-full gap-2">
-                <Printer className="w-4 h-4" />
-                {t('payment.printReceipt')}
-              </Button>
+      <>
+        {/* Success Screen - visible on screen */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex items-center justify-center min-h-[60vh] no-print"
+        >
+          <Card className="card-pos max-w-md w-full text-center">
+            <CardContent className="p-8">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: 'spring' }}
+                className="w-20 h-20 bg-success/20 rounded-full mx-auto mb-6 flex items-center justify-center"
+              >
+                <Check className="w-10 h-10 text-success" />
+              </motion.div>
+              <h2 className="text-2xl font-bold mb-2">{t('payment.title')} Complete!</h2>
+              <p className="text-muted-foreground mb-6">
+                Order sent to kitchen successfully.
+              </p>
+              <div className="space-y-3">
+                <Button className="w-full" onClick={handleNewOrder}>
+                  Start New Order
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => window.print()}
+                >
+                  <Printer className="w-4 h-4" />
+                  {t('payment.printReceipt')}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Receipt - visible only when printing */}
+        {completedOrder && (
+          <div className="hidden print:block print-receipt">
+            <div className="max-w-sm mx-auto p-8 text-sm">
+              {/* Header */}
+              <div className="text-center mb-6">
+                <h1 className="text-2xl font-bold">{t('common.appName')}</h1>
+                <p className="text-muted-foreground">نظام نقاط البيع</p>
+                <p className="text-xs mt-2">{new Date().toLocaleString()}</p>
+              </div>
+
+              {/* Order Number */}
+              <div className="border-t border-b py-2 mb-4">
+                <p className="text-center font-semibold">
+                  Order #{completedOrder.orderNumber}
+                </p>
+                <p className="text-center text-xs">
+                  {currentOrderType.toUpperCase()}
+                  {selectedTableId && ` - Table ${selectedTableId}`}
+                </p>
+              </div>
+
+              {/* Items */}
+              <div className="mb-4">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-1">Item</th>
+                      <th className="text-center py-1">Qty</th>
+                      <th className="text-right py-1">Price</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {completedOrder.items.map((item: any, idx: number) => (
+                      <tr key={idx} className="border-b">
+                        <td className="py-2">{item.dishName}</td>
+                        <td className="text-center">{item.quantity}</td>
+                        <td className="text-right">
+                          {formatCurrency(item.totalPrice, i18n.language)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Totals */}
+              <div className="space-y-1 mb-6">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>{formatCurrency(completedOrder.subtotal, i18n.language)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>VAT (15%):</span>
+                  <span>{formatCurrency(completedOrder.vat, i18n.language)}</span>
+                </div>
+                <div className="flex justify-between font-bold text-lg border-t pt-2">
+                  <span>Total:</span>
+                  <span>{formatCurrency(completedOrder.total, i18n.language)}</span>
+                </div>
+              </div>
+
+              {/* Payment Info */}
+              <div className="border-t pt-4 mb-6">
+                <div className="flex justify-between">
+                  <span>Payment Method:</span>
+                  <span className="capitalize">{completedOrder.paymentMethod}</span>
+                </div>
+                {completedOrder.paymentMethod === 'cash' && (
+                  <>
+                    <div className="flex justify-between">
+                      <span>Amount Tendered:</span>
+                      <span>{formatCurrency(completedOrder.amountTendered, i18n.language)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Change:</span>
+                      <span>{formatCurrency(completedOrder.change, i18n.language)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="text-center text-xs text-muted-foreground border-t pt-4">
+                <p>Thank you for your order!</p>
+                <p className="mt-1">شكراً لطلبكم</p>
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+          </div>
+        )}
+      </>
     );
   }
 

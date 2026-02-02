@@ -96,16 +96,25 @@
   },
   "kds": {
     "title": "Kitchen Display",
+    "pending": "Pending",
     "newOrders": "New",
     "preparing": "Preparing",
     "ready": "Ready",
+    "live": "Live",
+    "totalOrders": "Total Orders",
+    "noOrders": "No orders in this status",
+    "startCooking": "Start Cooking",
+    "markReady": "Mark Ready",
+    "markServed": "Mark Served",
     "startPrep": "Start",
-    "markReady": "Ready",
     "bump": "Bump",
     "elapsed": "Elapsed",
     "orderNumber": "Order #",
     "table": "Table",
-    "items": "Items"
+    "items": "Items",
+    "notes": "Notes",
+    "noActiveOrders": "No Active Orders",
+    "waitingForOrders": "Waiting for new orders from POS"
   },
   "orders": {
     "title": "Orders",

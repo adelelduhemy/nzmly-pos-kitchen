@@ -53,6 +53,7 @@ export const useCreateOrder = () => {
                     total: params.total,
                     payment_method: params.paymentMethod,
                     status: 'pending',
+                    payment_status: 'unpaid', // New field for payment tracking
                     cashier_id: user.id,
                     notes: params.notes,
                 })

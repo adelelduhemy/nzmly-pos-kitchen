@@ -1,0 +1,42 @@
+/* Print styles for Reports page */
+@media print {
+
+    /* Hide navigation and non-essential elements */
+    nav,
+    header,
+    button,
+    .no-print {
+        display: none !important;
+    }
+
+    /* Optimize for black & white printing */
+    body {
+        background: white !important;
+        color: black !important;
+    }
+
+    /* Ensure charts are visible */
+    .recharts-wrapper {
+        page-break-inside: avoid;
+    }
+
+    /* Card styling for print */
+    .card-pos {
+        border: 1px solid #ccc !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+        margin-bottom: 1rem;
+    }
+
+    /* Prevent page breaks inside important elements */
+    h1,
+    h2,
+    h3 {
+        page-break-after: avoid;
+    }
+
+    /* Add page breaks between major sections */
+    .space-y-6>* {
+        page-break-inside: avoid;
+    }
+}

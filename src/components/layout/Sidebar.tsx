@@ -18,7 +18,7 @@ import {
   Menu,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { UserRole } from '@/types';
 import nazmliLogo from '@/assets/nazmli-logo.png';
 
@@ -49,11 +49,18 @@ const navItems: NavItem[] = [
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   const { t, i18n } = useTranslation();
   const location = useLocation();
-  const { user, logout } = useAuthStore();
+  const { user, hasPermission, signOut } = useAuthContext();
   const isRTL = i18n.language === 'ar';
 
+  // Alias signOut to logout for compatibility
+  const logout = signOut;
+
   const filteredNavItems = navItems.filter(
-    (item) => user && item.roles.includes(user.role)
+    (item) => {
+      // Map path to resource name (simple mapping for now)
+      const resource = item.path.replace('/', '');
+      return hasPermission(resource);
+    }
   );
 
   return (

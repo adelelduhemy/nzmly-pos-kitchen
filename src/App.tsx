@@ -27,8 +27,17 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, loading } = useAuthContext();
+import Unauthorized from "./pages/Unauthorized";
+import { AppRole } from "./hooks/useAuth";
+
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  allowedRoles?: AppRole[];
+  requiredPermission?: string;
+}
+
+const ProtectedRoute = ({ children, allowedRoles, requiredPermission }: ProtectedRouteProps) => {
+  const { isAuthenticated, loading, hasRole, hasPermission } = useAuthContext();
 
   if (loading) {
     return (
@@ -38,7 +47,17 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  if (allowedRoles && !allowedRoles.some(role => hasRole(role))) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  if (requiredPermission && !hasPermission(requiredPermission)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  return <>{children}</>;
 };
 
 const AppRoutes = () => {
@@ -46,6 +65,7 @@ const AppRoutes = () => {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/unauthorized" element={<Unauthorized />} />
         <Route
           path="/"
           element={
@@ -56,25 +76,86 @@ const AppRoutes = () => {
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="pos" element={<POS />} />
-          <Route path="orders" element={<Orders />} />
-          <Route path="kds" element={<KDS />} />
-          <Route path="menu" element={<MenuManagement />} />
-          <Route path="tables" element={<Tables />} />
-          <Route path="inventory" element={<Inventory />} />
-          <Route path="dishes" element={<DishManagement />} />
-          <Route path="finance" element={<FinancialManagement />} />
-          <Route path="crm" element={<CRM />} />
-          <Route path="suppliers" element={<Suppliers />} />
-          <Route path="online-menu" element={<OnlineMenu />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="users" element={<UserManagement />} />
+          <Route path="pos" element={
+            <ProtectedRoute requiredPermission="pos">
+              <POS />
+            </ProtectedRoute>
+          } />
+          <Route path="orders" element={
+            <ProtectedRoute requiredPermission="orders">
+              <Orders />
+            </ProtectedRoute>
+          } />
+          <Route path="kds" element={
+            <ProtectedRoute requiredPermission="kds">
+              <KDS />
+            </ProtectedRoute>
+          } />
+          <Route path="menu" element={
+            <ProtectedRoute requiredPermission="menu">
+              <MenuManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="tables" element={
+            <ProtectedRoute requiredPermission="tables">
+              <Tables />
+            </ProtectedRoute>
+          } />
+          <Route path="inventory" element={
+            <ProtectedRoute requiredPermission="inventory">
+              <Inventory />
+            </ProtectedRoute>
+          } />
+          <Route path="dishes" element={
+            <ProtectedRoute requiredPermission="inventory">
+              <DishManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="warehouse" element={
+            <ProtectedRoute requiredPermission="inventory">
+              <WarehouseManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="finance" element={
+            <ProtectedRoute requiredPermission="finance">
+              <FinancialManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="crm" element={
+            <ProtectedRoute requiredPermission="crm">
+              <CRM />
+            </ProtectedRoute>
+          } />
+          <Route path="suppliers" element={
+            <ProtectedRoute requiredPermission="suppliers">
+              <Suppliers />
+            </ProtectedRoute>
+          } />
+          <Route path="online-menu" element={
+            <ProtectedRoute requiredPermission="menu">
+              <OnlineMenu />
+            </ProtectedRoute>
+          } />
+          <Route path="reports" element={
+            <ProtectedRoute requiredPermission="reports">
+              <Reports />
+            </ProtectedRoute>
+          } />
+          <Route path="settings" element={
+            <ProtectedRoute requiredPermission="settings">
+              <Settings />
+            </ProtectedRoute>
+          } />
+          <Route path="users" element={
+            <ProtectedRoute requiredPermission="users">
+              <UserManagement />
+            </ProtectedRoute>
+          } />
         </Route>
         <Route path="/menu/:slug" element={<PublicMenu />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </BrowserRouter>
+    </BrowserRouter >
   );
 };
 

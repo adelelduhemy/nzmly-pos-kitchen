@@ -11,6 +11,7 @@ import { useOrderStore } from '@/store/orderStore';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { useToast } from '@/hooks/use-toast';
 import { useCreateOrder } from '@/hooks/useCreateOrder';
+import { useTables } from '@/hooks/useTables';
 
 interface PaymentScreenProps {
   onBack: () => void;
@@ -26,6 +27,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack }) => {
 
   const { items, getSubtotal, getVAT, getTotal, clearOrder, currentOrderType, selectedTableId } = useOrderStore();
   const createOrder = useCreateOrder();
+  const { updateTableStatus } = useTables();
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [amountTendered, setAmountTendered] = useState('');
@@ -63,7 +65,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack }) => {
         notes: item.notes,
       }));
 
-      await createOrder.mutateAsync({
+      const result = await createOrder.mutateAsync({
         orderType: currentOrderType,
         tableNumber: selectedTableId,
         subtotal: getSubtotal(),
@@ -73,6 +75,15 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack }) => {
         paymentMethod,
         items: orderItems,
       });
+
+      // Update table status to occupied and link to order
+      if (selectedTableId && result.order) {
+        await updateTableStatus({
+          id: selectedTableId,
+          status: 'occupied',
+          orderId: result.order.id,
+        });
+      }
 
       // Store order data for receipt
       setCompletedOrder({

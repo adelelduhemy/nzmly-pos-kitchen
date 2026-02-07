@@ -71,7 +71,7 @@ export interface OrderItem {
   totalPrice: number;
 }
 
-export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'served' | 'paid' | 'cancelled';
+export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'served' | 'paid' | 'cancelled' | 'completed';
 export type OrderType = 'dine-in' | 'takeaway' | 'delivery';
 
 export interface Order {

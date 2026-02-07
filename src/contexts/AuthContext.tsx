@@ -12,8 +12,11 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string) => Promise<any>;
   signOut: () => Promise<any>;
   hasRole: (role: AppRole) => boolean;
+  isOwner: () => boolean;
+  isManager: () => boolean;
   isOwnerOrManager: () => boolean;
   canManageInventory: () => boolean;
+  hasPermission: (resource: string) => boolean;
   isAuthenticated: boolean;
 }
 
@@ -21,7 +24,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
-  
+
   return (
     <AuthContext.Provider value={auth}>
       {children}

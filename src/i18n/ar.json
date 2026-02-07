@@ -234,5 +234,19 @@
     "preferences": "تفضيلات المستخدم",
     "restaurantName": "اسم المطعم",
     "vatNumber": "الرقم الضريبي"
+  },
+  "errors": {
+    "cannotModifyOwner": "لا يمكن تعديل صلاحيات المالك",
+    "cannotModifySelf": "لا يمكنك تعديل صلاحياتك الخاصة",
+    "onlyOwnerCanAssignOwner": "فقط المالك يمكنه تعيين/إزالة صلاحية المالك",
+    "onlyOwnerCanModifyRole": "فقط المالك يمكنه تعديل صلاحيات هذا الدور",
+    "permissionDenied": "تم رفض الصلاحية"
+  },
+  "info": {
+    "ownerFullAccess": "بصفتك المالك، يمكنك تعديل صلاحيات جميع الأدوار",
+    "managerPermissionLimit": "يمكنك تعديل صلاحيات الكاشير والمطبخ والمخزون فقط. لا يمكنك تعديل صلاحيات المالك أو المدير.",
+    "contactOwner": "لا يمكنك تعديل الصلاحيات. اتصل بالمالك أو المدير.",
+    "protected": "محمي",
+    "cannotModifySelfBadge": "لا يمكنك تعديل صلاحياتك"
   }
 }

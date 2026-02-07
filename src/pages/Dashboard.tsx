@@ -21,7 +21,10 @@ import {
 import { useAuthContext } from '@/contexts/AuthContext';
 import { AppRole } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { mockDailySales, mockTopSellingItems, getLowStockItems } from '@/data/mockData';
+import { useDashboardStats } from '@/hooks/useDashboardStats';
+import { useLowStockAlerts } from '@/hooks/useLowStockAlerts';
+import { useTopSellingItems } from '@/hooks/useTopSellingItems';
+import { useDailySales } from '@/hooks/useDailySales';
 import SalesChart from '@/components/dashboard/SalesChart';
 import TopSellingItems from '@/components/dashboard/TopSellingItems';
 import AlertsPanel from '@/components/dashboard/AlertsPanel';
@@ -195,34 +198,33 @@ const Dashboard = () => {
   const { profile, roles, hasRole } = useAuthContext();
   const isAr = i18n.language === 'ar';
 
+  const { data: stats, isLoading } = useDashboardStats();
+  const { data: lowStockAlerts = [] } = useLowStockAlerts();
+  const { data: topSellingItems = [] } = useTopSellingItems();
+  const { data: dailySales = [] } = useDailySales();
+
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [stats, setStats] = useState({
-    todaySales: 12450,
-    activeOrders: 8,
-    occupiedTables: 5,
-    totalTables: 12,
-    averageOrderValue: 85.5,
-  });
 
   useEffect(() => {
-    // Generate alerts based on data
-    const lowStockItems = getLowStockItems();
-    const newAlerts: Alert[] = [];
+    // Generate alerts from real low stock data
+    const newAlerts: Alert[] = lowStockAlerts.map((item) => ({
+      id: `low-stock-${item.id}`,
+      type: 'low_stock' as const,
+      title: isAr ? `نقص في المخزون: ${item.nameAr}` : `Low Stock: ${item.nameEn}`,
+      description: isAr
+        ? `المتبقي: ${item.currentStock} ${item.unit} (الحد الأدنى: ${item.minimumStock})`
+        : `Remaining: ${item.currentStock} ${item.unit} (Min: ${item.minimumStock})`,
+      severity: item.severity,
+    }));
 
-    lowStockItems.forEach((item, index) => {
-      newAlerts.push({
-        id: `low-stock-${index}`,
-        type: 'low_stock',
-        title: isAr ? `نقص في المخزون: ${item.name}` : `Low Stock: ${item.name}`,
-        description: isAr 
-          ? `المتبقي: ${item.currentStock} ${item.unit} (الحد الأدنى: ${item.minimumStock})`
-          : `Remaining: ${item.currentStock} ${item.unit} (Min: ${item.minimumStock})`,
-        severity: item.currentStock < item.minimumStock / 2 ? 'error' : 'warning',
-      });
-    });
-
-    setAlerts(newAlerts);
-  }, [isAr]);
+    // Only update if alerts actually changed to prevent infinite loop
+    const alertsChanged = newAlerts.length !== alerts.length ||
+      JSON.stringify(newAlerts) !== JSON.stringify(alerts);
+    
+    if (alertsChanged) {
+      setAlerts(newAlerts);
+    }
+  }, [lowStockAlerts.length, isAr]);
 
   // Filter cards based on user roles
   const filteredCards = navCards.filter((card) => {
@@ -279,13 +281,15 @@ const Dashboard = () => {
       </div>
 
       {/* Quick Stats */}
-      <StatsCards
-        todaySales={stats.todaySales}
-        activeOrders={stats.activeOrders}
-        occupiedTables={stats.occupiedTables}
-        totalTables={stats.totalTables}
-        averageOrderValue={stats.averageOrderValue}
-      />
+      {stats && (
+        <StatsCards
+          todaySales={stats.todaySales}
+          activeOrders={stats.activeOrders}
+          occupiedTables={stats.occupiedTables}
+          totalTables={stats.totalTables}
+          averageOrderValue={stats.averageOrderValue}
+        />
+      )}
 
       {/* All Navigation Cards */}
       <div>
@@ -337,12 +341,12 @@ const Dashboard = () => {
 
       {/* Top Selling Items and Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TopSellingItems items={mockTopSellingItems} />
+        <TopSellingItems items={topSellingItems} />
         <AlertsPanel alerts={alerts} />
       </div>
 
       {/* Sales Chart at Bottom */}
-      <SalesChart data={mockDailySales} />
+      <SalesChart data={dailySales} />
     </div>
   );
 };

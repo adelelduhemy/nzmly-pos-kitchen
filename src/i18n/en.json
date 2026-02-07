@@ -243,5 +243,19 @@
     "preferences": "User Preferences",
     "restaurantName": "Restaurant Name",
     "vatNumber": "VAT Number"
+  },
+  "errors": {
+    "cannotModifyOwner": "Cannot modify owner privileges",
+    "cannotModifySelf": "Cannot modify your own roles",
+    "onlyOwnerCanAssignOwner": "Only owners can assign/remove owner role",
+    "onlyOwnerCanModifyRole": "Only owners can modify this role permissions",
+    "permissionDenied": "Permission denied"
+  },
+  "info": {
+    "ownerFullAccess": "As an Owner, you can modify permissions for all roles",
+    "managerPermissionLimit": "You can only modify permissions for Cashier, Kitchen, and Inventory roles. You cannot modify Owner or Manager permissions.",
+    "contactOwner": "You cannot modify permissions. Contact an Owner or Manager.",
+    "protected": "Protected",
+    "cannotModifySelfBadge": "Cannot modify self"
   }
 }

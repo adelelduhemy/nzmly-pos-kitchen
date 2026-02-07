@@ -15,12 +15,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { mockTables } from '@/data/mockData';
+import { useTables } from '@/hooks/useTables';
 import { useOrderStore } from '@/store/orderStore';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { MenuItem, MenuVariant, MenuModifier } from '@/types';
 import PaymentScreen from './PaymentScreen';
 import { useMenuItems, MenuItemFromDB } from '@/hooks/useMenuItems';
+import { useMenuCategories } from '@/hooks/useMenuCategories';
 import CustomerSelector from './CustomerSelector';
 
 interface OrderBuilderProps {
@@ -45,6 +46,8 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({ onBack }) => {
   } = useOrderStore();
 
   const { data: menuItemsFromDB = [], isLoading: menuItemsLoading } = useMenuItems();
+  const { data: menuCategories = [] } = useMenuCategories();
+  const { tables = [] } = useTables();
 
   // Convert DB menu items to MenuItem format
   const menuItems = menuItemsFromDB.map((dbItem): MenuItem => ({
@@ -60,10 +63,41 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({ onBack }) => {
     modifiers: [],
   }));
 
-  // Get unique categories from menu items
-  const categories = Array.from(new Set(menuItems.map(item => item.categoryId)));
+  // Get unique category IDs from menu items
+  const availableCategoryIds = Array.from(new Set(menuItems.map(item => item.categoryId)));
 
-  const [selectedCategory, setSelectedCategory] = useState<string>(categories[0] || '');
+  // Resolve category names for all available IDs
+  const displayableCategories = availableCategoryIds.map(catId => {
+    const knownCat = menuCategories.find(c => c.id === catId);
+    if (knownCat) {
+      return {
+        id: catId,
+        nameEn: knownCat.name_en,
+        nameAr: knownCat.name_ar,
+        displayOrder: knownCat.display_order || 999
+      };
+    }
+    // Legacy support: if catId isn't a UUID but a name (e.g. "Appetizers")
+    return {
+      id: catId,
+      nameEn: catId,
+      nameAr: catId,
+      displayOrder: 999
+    };
+  }).sort((a, b) => a.displayOrder - b.displayOrder);
+
+  // If we have items but no categories loaded yet, or if items have categories not in our list (shouldn't happen with correct FKs),
+  // we might want to handle that. For now, we rely on activeCategories.
+
+  // Default to first category
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+
+  // Update selected category when categories load
+  React.useEffect(() => {
+    if (displayableCategories.length > 0 && !selectedCategory) {
+      setSelectedCategory(displayableCategories[0].id);
+    }
+  }, [displayableCategories, selectedCategory]);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [customizationOpen, setCustomizationOpen] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
@@ -75,7 +109,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({ onBack }) => {
   const [itemNotes, setItemNotes] = useState('');
   const [itemQuantity, setItemQuantity] = useState(1);
 
-  const selectedTable = mockTables.find((t) => t.id === selectedTableId);
+  const selectedTable = tables.find((t) => t.id === selectedTableId);
   const filteredItems = menuItems.filter((item) => item.categoryId === selectedCategory && item.isActive);
 
   const openCustomization = (item: MenuItem) => {
@@ -135,7 +169,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({ onBack }) => {
               className="gap-2"
             >
               <Users className="w-4 h-4" />
-              {selectedTable ? `${t('kds.table')} ${selectedTable.number}` : t('pos.takeaway')}
+              {selectedTable ? `${t('kds.table')} ${selectedTable.table_number}` : t('pos.takeaway')}
             </Button>
             <Button
               variant={currentOrderType === 'delivery' ? 'default' : 'outline'}
@@ -156,17 +190,17 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({ onBack }) => {
         {/* Categories */}
         <div className="mb-4 overflow-x-auto">
           <div className="flex gap-2 pb-2">
-            {categories.map((category) => (
+            {displayableCategories.map((category) => (
               <Button
-                key={category}
-                variant={selectedCategory === category ? 'default' : 'outline'}
+                key={category.id}
+                variant={selectedCategory === category.id ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setSelectedCategory(category)}
+                onClick={() => setSelectedCategory(category.id)}
                 className="whitespace-nowrap"
               >
-                {category}
+                {isRTL ? category.nameAr : category.nameEn}
                 <Badge variant="secondary" className="ml-2">
-                  {menuItems.filter((i) => i.categoryId === category).length}
+                  {menuItems.filter((i) => i.categoryId === category.id).length}
                 </Badge>
               </Button>
             ))}

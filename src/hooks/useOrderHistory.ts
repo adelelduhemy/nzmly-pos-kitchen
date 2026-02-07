@@ -12,7 +12,7 @@ export interface OrderHistoryItem {
     discount: number;
     total: number;
     payment_method: 'cash' | 'card' | 'online';
-    status: 'pending' | 'preparing' | 'ready' | 'served' | 'cancelled';
+    status: 'pending' | 'preparing' | 'ready' | 'served' | 'cancelled' | 'completed';
     payment_status: 'paid' | 'unpaid';
     cashier_id: string | null;
     created_at: string;

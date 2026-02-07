@@ -64,7 +64,6 @@ export const useOrders = () => {
                     table: 'orders',
                 },
                 (payload) => {
-                    console.log('Order change:', payload);
                     // Invalidate and refetch orders
                     queryClient.invalidateQueries({ queryKey: ['orders'] });
                 }
@@ -92,6 +91,18 @@ export const useUpdateOrderStatus = () => {
                 .single();
 
             if (error) throw error;
+            
+            // If order is completed, free the table by table_number
+            if (status === 'completed' && data.table_number) {
+                await supabase
+                    .from('restaurant_tables')
+                    .update({ 
+                        status: 'available',
+                        current_order_id: null 
+                    })
+                    .eq('table_number', data.table_number);
+            }
+            
             return data;
         },
         onSuccess: (_, variables) => {
@@ -99,6 +110,7 @@ export const useUpdateOrderStatus = () => {
                 description: `Status changed to ${variables.status}`,
             });
             queryClient.invalidateQueries({ queryKey: ['orders'] });
+            queryClient.invalidateQueries({ queryKey: ['restaurant_tables'] });
         },
         onError: (error: any) => {
             toast.error('Failed to update order status', {

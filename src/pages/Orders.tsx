@@ -39,7 +39,7 @@ import { useUpdateOrderStatus } from '@/hooks/useUpdateOrderStatus';
 import { useUpdateWorkflowStatus } from '@/hooks/useUpdateWorkflowStatus';
 import { startOfDay, endOfDay, subDays, startOfWeek, startOfMonth } from 'date-fns';
 
-type OrderStatus = 'pending' | 'preparing' | 'ready' | 'served' | 'paid' | 'cancelled';
+type OrderStatus = 'pending' | 'preparing' | 'ready' | 'served' | 'paid' | 'completed' | 'cancelled';
 type OrderType = 'dine-in' | 'takeaway' | 'delivery';
 
 const Orders = () => {
@@ -90,12 +90,13 @@ const Orders = () => {
       OrderStatus,
       { variant: 'default' | 'secondary' | 'destructive' | 'outline'; className: string }
     > = {
-      pending: { variant: 'secondary', className: 'bg-muted' },
-      preparing: { variant: 'default', className: 'bg-warning text-warning-foreground' },
-      ready: { variant: 'default', className: 'bg-success text-success-foreground' },
-      served: { variant: 'secondary', className: 'bg-muted' },
-      paid: { variant: 'default', className: 'bg-success text-success-foreground' },
-      cancelled: { variant: 'destructive', className: '' },
+      pending: { variant: 'secondary', className: 'bg-yellow-600 text-white' },
+      preparing: { variant: 'default', className: 'bg-orange-600 text-white' },
+      ready: { variant: 'default', className: 'bg-green-600 text-white' },
+      served: { variant: 'secondary', className: 'bg-blue-600 text-white' },
+      paid: { variant: 'default', className: 'bg-emerald-600 text-white' },
+      completed: { variant: 'default', className: 'bg-gray-600 text-white' },
+      cancelled: { variant: 'destructive', className: 'bg-red-600 text-white' },
     };
     return config[status];
   };
@@ -125,6 +126,7 @@ const Orders = () => {
     'ready',
     'served',
     'paid',
+    'completed',
     'cancelled',
   ];
 
@@ -223,12 +225,54 @@ const Orders = () => {
               badgeCount = stats?.statusCounts?.[status] || 0;
             }
 
+            // Define colors for each status
+            const getStatusColor = () => {
+              if (statusFilter === status) {
+                // Active state colors
+                switch (status) {
+                  case 'pending':
+                    return 'bg-yellow-600 hover:bg-yellow-700 text-white';
+                  case 'preparing':
+                    return 'bg-orange-600 hover:bg-orange-700 text-white';
+                  case 'ready':
+                    return 'bg-green-600 hover:bg-green-700 text-white';
+                  case 'served':
+                    return 'bg-blue-600 hover:bg-blue-700 text-white';
+                  case 'paid':
+                    return 'bg-emerald-600 hover:bg-emerald-700 text-white';
+                  case 'cancelled':
+                    return 'bg-red-600 hover:bg-red-700 text-white';
+                  default:
+                    return '';
+                }
+              } else {
+                // Inactive state - outlined with status color
+                switch (status) {
+                  case 'pending':
+                    return 'border-yellow-600 text-yellow-600 hover:bg-yellow-50';
+                  case 'preparing':
+                    return 'border-orange-600 text-orange-600 hover:bg-orange-50';
+                  case 'ready':
+                    return 'border-green-600 text-green-600 hover:bg-green-50';
+                  case 'served':
+                    return 'border-blue-600 text-blue-600 hover:bg-blue-50';
+                  case 'paid':
+                    return 'border-emerald-600 text-emerald-600 hover:bg-emerald-50';
+                  case 'cancelled':
+                    return 'border-red-600 text-red-600 hover:bg-red-50';
+                  default:
+                    return '';
+                }
+              }
+            };
+
             return (
               <Button
                 key={status}
                 variant={statusFilter === status ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setStatusFilter(status)}
+                className={getStatusColor()}
               >
                 {status === 'all' ? t('orders.allOrders') : t(`orders.${status}`)}
                 <Badge variant="secondary" className="ml-2">
@@ -395,6 +439,25 @@ const Orders = () => {
 
               {/* Action Buttons */}
               <div className="space-y-2 pt-4 border-t">
+                {/* Complete Order Button - Only for paid orders */}
+                {selectedOrder.payment_status === 'paid' && selectedOrder.status !== 'completed' && selectedOrder.status !== 'cancelled' && (
+                  <Button
+                    variant="default"
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                    onClick={() => {
+                      updateWorkflowStatus.mutate({
+                        orderId: selectedOrder.id,
+                        status: 'completed',
+                      });
+                      setSelectedOrder(null);
+                    }}
+                    disabled={updateWorkflowStatus.isPending}
+                  >
+                    <Check className="w-4 h-4 mr-2" />
+                    Complete Order (Free Table)
+                  </Button>
+                )}
+
                 {/* Status Update Buttons */}
                 {selectedOrder.payment_status !== 'paid' && selectedOrder.status !== 'cancelled' && (
                   <Button

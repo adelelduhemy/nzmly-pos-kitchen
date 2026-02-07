@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, Truck, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { mockTables } from '@/data/mockData';
+import { useTables } from '@/hooks/useTables';
 import { useOrderStore } from '@/store/orderStore';
 import { OrderType, TableStatus } from '@/types';
 import OrderBuilder from '@/components/pos/OrderBuilder';
@@ -24,9 +24,17 @@ const POS = () => {
     { type: 'delivery', icon: Truck, labelKey: 'pos.delivery' },
   ];
 
-  const filteredTables = mockTables.filter((table) =>
-    sectionFilter === 'all' ? true : table.section === sectionFilter
-  );
+  const { tables, isLoading } = useTables();
+
+  const filteredTables = tables
+    .filter((table) =>
+      sectionFilter === 'all' ? true : table.section === sectionFilter
+    )
+    .sort((a, b) => {
+      const numA = parseInt(a.table_number.replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(b.table_number.replace(/\D/g, ''), 10) || 0;
+      return numA - numB;
+    });
 
   const getStatusColor = (status: TableStatus): string => {
     const colors: Record<TableStatus, string> = {
@@ -117,21 +125,23 @@ const POS = () => {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ delay: index * 0.05 }}
-              onClick={() => table.status === 'available' && handleTableSelect(table.id)}
-              disabled={table.status !== 'available'}
+              onClick={() => table.status !== 'cleaning' && handleTableSelect(table.id)}
+              disabled={table.status === 'cleaning'}
               className={cn(
                 'aspect-square rounded-xl border-2 p-4 flex flex-col items-center justify-center gap-2 transition-all duration-200',
-                getStatusColor(table.status),
-                table.status === 'available' && 'hover:scale-105 cursor-pointer',
-                table.status !== 'available' && 'opacity-70 cursor-not-allowed'
+                getStatusColor(table.status as TableStatus),
+                table.status !== 'cleaning' && 'hover:scale-105 cursor-pointer',
+                table.status === 'cleaning' && 'opacity-70 cursor-not-allowed'
               )}
             >
-              <span className="text-2xl font-bold">{table.number}</span>
+              <span className="text-2xl font-bold">{table.table_number}</span>
               <span className="text-sm">
                 <Users className="w-4 h-4 inline mr-1" />
                 {table.capacity}
               </span>
-              <span className="text-xs font-medium">{getStatusLabel(table.status)}</span>
+              <span className="text-xs font-medium">
+                {table.status === 'occupied' ? (isRTL ? 'إضافة للطلب' : 'Add to Order') : getStatusLabel(table.status as TableStatus)}
+              </span>
             </motion.button>
           ))}
         </AnimatePresence>

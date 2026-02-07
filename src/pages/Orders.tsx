@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import {
   Search,
-  Filter,
   Eye,
   X,
   Clock,
@@ -240,6 +239,8 @@ const Orders = () => {
                     return 'bg-blue-600 hover:bg-blue-700 text-white';
                   case 'paid':
                     return 'bg-emerald-600 hover:bg-emerald-700 text-white';
+                  case 'completed':
+                    return 'bg-gray-600 hover:bg-gray-700 text-white';
                   case 'cancelled':
                     return 'bg-red-600 hover:bg-red-700 text-white';
                   default:
@@ -258,6 +259,8 @@ const Orders = () => {
                     return 'border-blue-600 text-blue-600 hover:bg-blue-50';
                   case 'paid':
                     return 'border-emerald-600 text-emerald-600 hover:bg-emerald-50';
+                  case 'completed':
+                    return 'border-gray-600 text-gray-600 hover:bg-gray-50';
                   case 'cancelled':
                     return 'border-red-600 text-red-600 hover:bg-red-50';
                   default:

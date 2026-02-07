@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Plus, Minus, Trash2, MessageSquare, X, ShoppingBag, Truck, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { useMenuItemsStock, checkMenuItemStock } from '@/hooks/useMenuItemsStock';
+import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -57,7 +59,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({ onBack }) => {
     descriptionEn: dbItem.description_en || '',
     descriptionAr: dbItem.description_ar || '',
     basePrice: Number(dbItem.price),
-    categoryId: dbItem.category,
+    categoryId: dbItem.category_id || dbItem.category, // Support both new and legacy
     isActive: dbItem.is_available,
     variants: [],
     modifiers: [],
@@ -110,6 +112,12 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({ onBack }) => {
   const [itemQuantity, setItemQuantity] = useState(1);
 
   const selectedTable = tables.find((t) => t.id === selectedTableId);
+  // Get stock availability for all menu items
+  const { data: stockData = [] } = useMenuItemsStock(menuItems.map(item => item.id));
+
+  // Create stock lookup map
+  const stockMap = new Map(stockData.map(s => [s.menuItemId, s]));
+
   const filteredItems = menuItems.filter((item) => item.categoryId === selectedCategory && item.isActive);
 
   const openCustomization = (item: MenuItem) => {
@@ -121,12 +129,22 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({ onBack }) => {
     setCustomizationOpen(true);
   };
 
-  const handleAddToOrder = () => {
-    if (selectedItem) {
-      addItem(selectedItem, itemQuantity, selectedVariant, selectedModifiers, itemNotes || undefined);
-      setCustomizationOpen(false);
-      setSelectedItem(null);
+  const handleAddToOrder = async () => {
+    if (!selectedItem) return;
+
+    // Check stock availability
+    const stockCheck = await checkMenuItemStock(selectedItem.id, itemQuantity);
+    
+    if (!stockCheck.available) {
+      toast.error('Insufficient stock', {
+        description: `Missing: ${stockCheck.insufficientIngredients.join(', ')}`
+      });
+      return;
     }
+
+    addItem(selectedItem, itemQuantity, selectedVariant, selectedModifiers, itemNotes || undefined);
+    setCustomizationOpen(false);
+    setSelectedItem(null);
   };
 
   const toggleModifier = (modifier: MenuModifier) => {
@@ -220,12 +238,26 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({ onBack }) => {
                   transition={{ delay: index * 0.03 }}
                 >
                   <Card
-                    className="menu-item-card h-full"
-                    onClick={() => openCustomization(item)}
+                    className={cn(
+                      "menu-item-card h-full",
+                      !stockMap.get(item.id)?.isAvailable && stockMap.get(item.id)?.hasRecipe && "opacity-50 border-destructive"
+                    )}
+                    onClick={() => {
+                      if (!stockMap.get(item.id)?.isAvailable && stockMap.get(item.id)?.hasRecipe) {
+                        toast.error('Out of stock');
+                        return;
+                      }
+                      openCustomization(item);
+                    }}
                   >
                     <CardContent className="p-4">
-                      <div className="aspect-video bg-muted rounded-lg mb-3 flex items-center justify-center">
+                      <div className="aspect-video bg-muted rounded-lg mb-3 flex items-center justify-center relative">
                         <span className="text-3xl">🍽️</span>
+                        {!stockMap.get(item.id)?.isAvailable && stockMap.get(item.id)?.hasRecipe && (
+                          <div className="absolute inset-0 bg-destructive/10 rounded-lg flex items-center justify-center">
+                            <Badge variant="destructive">Out of Stock</Badge>
+                          </div>
+                        )}
                       </div>
                       <h3 className="font-semibold line-clamp-1">
                         {isRTL ? item.nameAr : item.nameEn}

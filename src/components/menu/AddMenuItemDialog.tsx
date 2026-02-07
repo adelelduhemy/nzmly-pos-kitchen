@@ -41,7 +41,7 @@ const AddMenuItemDialog = ({ open, onOpenChange }: AddMenuItemDialogProps) => {
         description_en: '',
         description_ar: '',
         price: '',
-        category: '',
+        category_id: '',
         image_url: '',
     });
 
@@ -87,7 +87,7 @@ const AddMenuItemDialog = ({ open, onOpenChange }: AddMenuItemDialogProps) => {
                     description_en: formData.description_en,
                     description_ar: formData.description_ar,
                     price: parseFloat(formData.price) || 0,
-                    category: formData.category,
+                    category_id: formData.category_id,
                     image_url: formData.image_url || null,
                     is_available: true,
                     is_featured: false,
@@ -132,7 +132,7 @@ const AddMenuItemDialog = ({ open, onOpenChange }: AddMenuItemDialogProps) => {
             description_en: '',
             description_ar: '',
             price: '',
-            category: '',
+            category_id: '',
             image_url: '',
         });
         setRecipes([]);
@@ -254,8 +254,8 @@ const AddMenuItemDialog = ({ open, onOpenChange }: AddMenuItemDialogProps) => {
                             <div className="space-y-2">
                                 <Label>{isRTL ? 'الفئة' : 'Category'}</Label>
                                 <Select
-                                    value={formData.category}
-                                    onValueChange={(val) => setFormData({ ...formData, category: val })}
+                                    value={formData.category_id}
+                                    onValueChange={(val) => setFormData({ ...formData, category_id: val })}
                                     required
                                 >
                                     <SelectTrigger>
@@ -263,7 +263,7 @@ const AddMenuItemDialog = ({ open, onOpenChange }: AddMenuItemDialogProps) => {
                                     </SelectTrigger>
                                     <SelectContent>
                                         {categories.map((cat) => (
-                                            <SelectItem key={cat.id} value={cat.name_en}>
+                                            <SelectItem key={cat.id} value={cat.id}>
                                                 {isRTL ? cat.name_ar : cat.name_en}
                                             </SelectItem>
                                         ))}

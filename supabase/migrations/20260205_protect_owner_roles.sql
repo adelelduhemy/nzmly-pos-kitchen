@@ -77,7 +77,7 @@ BEGIN
   -- Insert new roles
   IF array_length(new_roles, 1) > 0 THEN
     INSERT INTO public.user_roles (user_id, role, warehouse_id)
-    SELECT target_user_id, role::text, NULL
+    SELECT target_user_id, role::app_role, NULL
     FROM unnest(new_roles) AS role;
   END IF;
 END;

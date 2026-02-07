@@ -13,7 +13,6 @@ import {
   Settings,
   Users,
   DollarSign,
-  Utensils,
   Heart,
   Truck,
   QrCode,
@@ -37,7 +36,7 @@ interface NavCard {
   descAr: string;
   descEn: string;
   path: string;
-  roles: AppRole[];
+  resource: string;
   color: string;
 }
 
@@ -49,7 +48,7 @@ const navCards: NavCard[] = [
     descAr: 'إنشاء طلبات جديدة',
     descEn: 'Create new orders',
     path: '/pos',
-    roles: ['owner', 'manager', 'cashier'],
+    resource: 'pos',
     color: 'from-blue-500 to-blue-600',
   },
   {
@@ -59,7 +58,7 @@ const navCards: NavCard[] = [
     descAr: 'إدارة الطلبات النشطة',
     descEn: 'Manage active orders',
     path: '/orders',
-    roles: ['owner', 'manager', 'cashier'],
+    resource: 'orders',
     color: 'from-green-500 to-green-600',
   },
   {
@@ -69,7 +68,7 @@ const navCards: NavCard[] = [
     descAr: 'عرض طلبات المطبخ',
     descEn: 'View kitchen orders',
     path: '/kds',
-    roles: ['owner', 'manager', 'kitchen'],
+    resource: 'kds',
     color: 'from-orange-500 to-orange-600',
   },
   {
@@ -79,7 +78,7 @@ const navCards: NavCard[] = [
     descAr: 'تعديل الأصناف والأسعار',
     descEn: 'Edit items and prices',
     path: '/menu',
-    roles: ['owner', 'manager'],
+    resource: 'menu',
     color: 'from-purple-500 to-purple-600',
   },
   {
@@ -89,7 +88,7 @@ const navCards: NavCard[] = [
     descAr: 'إدارة طاولات المطعم',
     descEn: 'Manage restaurant tables',
     path: '/tables',
-    roles: ['owner', 'manager', 'cashier'],
+    resource: 'tables',
     color: 'from-teal-500 to-teal-600',
   },
   {
@@ -99,18 +98,8 @@ const navCards: NavCard[] = [
     descAr: 'إدارة المستودعات والمواد',
     descEn: 'Manage warehouses & materials',
     path: '/inventory',
-    roles: ['owner', 'manager', 'inventory'],
+    resource: 'inventory',
     color: 'from-amber-500 to-amber-600',
-  },
-  {
-    icon: Utensils,
-    titleAr: 'الأطباق والوصفات',
-    titleEn: 'Dishes & Recipes',
-    descAr: 'ربط الأطباق بالمواد الخام',
-    descEn: 'Link dishes to ingredients',
-    path: '/dishes',
-    roles: ['owner', 'manager'],
-    color: 'from-rose-500 to-rose-600',
   },
   {
     icon: DollarSign,
@@ -119,7 +108,7 @@ const navCards: NavCard[] = [
     descAr: 'المصروفات والشيفتات',
     descEn: 'Expenses & Shifts',
     path: '/finance',
-    roles: ['owner', 'manager'],
+    resource: 'finance',
     color: 'from-emerald-500 to-emerald-600',
   },
   {
@@ -129,7 +118,7 @@ const navCards: NavCard[] = [
     descAr: 'تحليل المبيعات',
     descEn: 'Sales analytics',
     path: '/reports',
-    roles: ['owner', 'manager'],
+    resource: 'reports',
     color: 'from-indigo-500 to-indigo-600',
   },
   {
@@ -139,7 +128,7 @@ const navCards: NavCard[] = [
     descAr: 'إدارة الموردين والمشتريات',
     descEn: 'Suppliers & purchases',
     path: '/suppliers',
-    roles: ['owner', 'manager', 'inventory'],
+    resource: 'suppliers',
     color: 'from-slate-500 to-slate-600',
   },
   {
@@ -149,7 +138,7 @@ const navCards: NavCard[] = [
     descAr: 'QR Code والمنيو الرقمي',
     descEn: 'QR Code & digital menu',
     path: '/online-menu',
-    roles: ['owner', 'manager'],
+    resource: 'menu',
     color: 'from-violet-500 to-violet-600',
   },
   {
@@ -159,7 +148,7 @@ const navCards: NavCard[] = [
     descAr: 'نقاط الولاء والكوبونات',
     descEn: 'Loyalty & coupons',
     path: '/crm',
-    roles: ['owner', 'manager'],
+    resource: 'crm',
     color: 'from-pink-500 to-pink-600',
   },
   {
@@ -169,7 +158,7 @@ const navCards: NavCard[] = [
     descAr: 'إدارة الموظفين والصلاحيات',
     descEn: 'Manage staff & permissions',
     path: '/users',
-    roles: ['owner', 'manager'],
+    resource: 'users',
     color: 'from-cyan-500 to-cyan-600',
   },
   {
@@ -179,7 +168,7 @@ const navCards: NavCard[] = [
     descAr: 'إعدادات النظام',
     descEn: 'System settings',
     path: '/settings',
-    roles: ['owner'],
+    resource: 'settings',
     color: 'from-gray-500 to-gray-600',
   },
 ];
@@ -195,7 +184,7 @@ interface Alert {
 const Dashboard = () => {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
-  const { profile, roles, hasRole } = useAuthContext();
+  const { profile, roles, hasPermission } = useAuthContext();
   const isAr = i18n.language === 'ar';
 
   const { data: stats, isLoading } = useDashboardStats();
@@ -226,12 +215,12 @@ const Dashboard = () => {
     }
   }, [lowStockAlerts.length, isAr]);
 
-  // Filter cards based on user roles
+  // Filter cards based on user permissions from role_permissions matrix
   const filteredCards = navCards.filter((card) => {
     if (roles.length === 0) {
       return true;
     }
-    return card.roles.some((role) => hasRole(role));
+    return hasPermission(card.resource);
   });
 
   const containerVariants = {

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -56,7 +56,7 @@ const OnlineMenu = () => {
   const [showQRDialog, setShowQRDialog] = useState(false);
   const [newItem, setNewItem] = useState({
     name_ar: '', name_en: '', description_ar: '', description_en: '',
-    price: 0, category: '', is_available: true, is_featured: false, image_url: null as string | null
+    price: 0, category_id: '', is_available: true, is_featured: false, image_url: null as string | null
   });
   const [newCategory, setNewCategory] = useState({ name_ar: '', name_en: '', icon: '', image_url: null as string | null });
 
@@ -109,7 +109,7 @@ const OnlineMenu = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menu_items'] });
       setIsAddItemOpen(false);
-      setNewItem({ name_ar: '', name_en: '', description_ar: '', description_en: '', price: 0, category: '', is_available: true, is_featured: false, image_url: null });
+      setNewItem({ name_ar: '', name_en: '', description_ar: '', description_en: '', price: 0, category_id: '', is_available: true, is_featured: false, image_url: null });
       toast({ title: isAr ? 'تم إضافة الصنف بنجاح' : 'Item added successfully' });
     },
     onError: (error: any) => {
@@ -307,6 +307,7 @@ const OnlineMenu = () => {
               <DialogContent className="max-w-lg">
                 <DialogHeader>
                   <DialogTitle>{isAr ? 'إضافة صنف جديد' : 'Add New Item'}</DialogTitle>
+                  <DialogDescription>{isAr ? 'أضف صنف جديد إلى المنيو' : 'Add a new item to your menu'}</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   {/* Image Upload */}
@@ -344,7 +345,7 @@ const OnlineMenu = () => {
                     </div>
                     <div>
                       <Label>{isAr ? 'القسم' : 'Category'}</Label>
-                      <Select value={newItem.category} onValueChange={(v) => setNewItem({ ...newItem, category: v })}>
+                      <Select value={newItem.category_id} onValueChange={(v) => setNewItem({ ...newItem, category_id: v })}>
                         <SelectTrigger><SelectValue placeholder={isAr ? 'اختر القسم' : 'Select category'} /></SelectTrigger>
                         <SelectContent>
                           {categories.map((cat: any) => (
@@ -418,6 +419,7 @@ const OnlineMenu = () => {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>{isAr ? 'إضافة قسم جديد' : 'Add New Category'}</DialogTitle>
+                  <DialogDescription>{isAr ? 'أضف قسم جديد للمنيو' : 'Add a new category to your menu'}</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   {/* Category Image Upload */}
@@ -504,7 +506,7 @@ const OnlineMenu = () => {
                 <CardContent className="pt-4 text-center">
                   <h3 className="font-semibold">{isAr ? cat.name_ar : cat.name_en}</h3>
                   <p className="text-sm text-muted-foreground">
-                    {menuItems.filter((i: any) => i.category === cat.id).length} {isAr ? 'أصناف' : 'items'}
+                    {menuItems.filter((i: any) => i.category_id === cat.id).length} {isAr ? 'أصناف' : 'items'}
                   </p>
                 </CardContent>
               </Card>
@@ -553,7 +555,7 @@ const OnlineMenu = () => {
               <div className="flex items-center justify-between">
                 <Label>{isAr ? 'تفعيل المنيو الأونلاين' : 'Enable Online Menu'}</Label>
                 <Switch
-                  checked={settings?.is_menu_active}
+                  checked={settings?.is_menu_active ?? false}
                   onCheckedChange={(v) => updateSettingsMutation.mutate({ is_menu_active: v })}
                 />
               </div>
@@ -567,6 +569,7 @@ const OnlineMenu = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-center">{isAr ? 'QR Code للمنيو' : 'Menu QR Code'}</DialogTitle>
+            <DialogDescription className="text-center">{isAr ? 'امسح الكود للاطلاع على المنيو' : 'Scan the code to view the menu'}</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center space-y-6 py-4">
             <div className="bg-white p-4 rounded-2xl shadow-lg">

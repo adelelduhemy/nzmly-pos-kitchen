@@ -38,21 +38,14 @@ export function useAuth() {
   useEffect(() => {
     let mounted = true;
     let initialLoadComplete = false;
-    let lastSessionState: 'none' | 'active' | null = null; // Track session state changes
-    let fetchInProgress = false; // CRITICAL: Prevent concurrent fetches
-    console.log('🔐 useAuth: Effect started');
+    let lastSessionState: 'none' | 'active' | null = null;
+    let fetchInProgress = false;
 
     async function handleAuthChange(session: Session | null) {
-      if (!mounted) {
-        console.log('🔐 useAuth: Component unmounted, skipping');
-        return;
-      }
+      if (!mounted) return;
 
-      // CRITICAL: Check fetch lock FIRST before any other logic
-      if (fetchInProgress) {
-        console.warn('🔐 useAuth: Fetch already in progress, skipping duplicate call');
-        return;
-      }
+      // Check fetch lock FIRST before any other logic
+      if (fetchInProgress) return;
 
       // Determine current session state
       const currentSessionState = session ? 'active' : 'none';
@@ -62,44 +55,32 @@ export function useAuth() {
       // 2. Session state changed (login/logout)
       const sessionStateChanged = lastSessionState !== null && lastSessionState !== currentSessionState;
 
-      if (initialLoadComplete && !sessionStateChanged) {
-        console.log('🔐 useAuth: Initial load already complete and no session change, skipping duplicate call');
-        return;
-      }
+      if (initialLoadComplete && !sessionStateChanged) return;
 
       if (sessionStateChanged) {
-        console.log(`🔐 useAuth: Session state changed from ${lastSessionState} to ${currentSessionState}`);
-        initialLoadComplete = false; // Reset to allow reloading user data
+        initialLoadComplete = false;
 
-        // CRITICAL: Set loading=true immediately to prevent "Access Denied" flash
-        // This ensures Router waits for permissions to load before checking access
+        // Set loading=true immediately to prevent "Access Denied" flash
         if (currentSessionState === 'active') {
-          console.log('🔐 useAuth: New login detected, setting loading to TRUE');
           setLoading(true);
         }
       }
-
-      console.log('🔐 useAuth: handleAuthChange called', { hasSession: !!session, userId: session?.user?.id });
 
       setSession(session);
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        console.log('🔐 useAuth: Fetching user data for', session.user.id);
-        fetchInProgress = true; // Mark fetch as in progress
+        fetchInProgress = true;
         const success = await fetchUserData(session.user.id);
-        fetchInProgress = false; // Mark fetch as complete
+        fetchInProgress = false;
 
         if (success) {
-          console.log('🔐 useAuth: User data fetched successfully');
           initialLoadComplete = true;
           lastSessionState = 'active';
         } else {
-          console.warn('🔐 useAuth: User data fetch failed, will retry on next auth event');
           return;
         }
       } else {
-        console.log('🔐 useAuth: No session, clearing user data');
         setProfile(null);
         setRoles([]);
         setPermissions([]);
@@ -108,7 +89,6 @@ export function useAuth() {
       }
 
       if (mounted && initialLoadComplete) {
-        console.log('🔐 useAuth: Setting loading to FALSE');
         setLoading(false);
       }
     }
@@ -116,38 +96,25 @@ export function useAuth() {
     // Safety net: If loading is still true after 10 seconds, something is wrong
     const safetyTimeout = setTimeout(() => {
       if (mounted && loading) {
-        console.error('🔐 useAuth: SAFETY TIMEOUT - Database queries taking too long (>10s)');
-        console.error('🔐 useAuth: Check your internet connection and Supabase status');
-        setLoading(false); // Prevent infinite loading
+        setLoading(false);
       }
     }, 10000);
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('🔐 useAuth: Auth state changed', event);
-
-        // CRITICAL: Ignore SIGNED_IN events ONLY during initial load
-        // SIGNED_IN fires before Supabase is fully initialized, causing timeouts
-        // But after initial load, SIGNED_IN means the user actually logged in!
-        if (event === 'SIGNED_IN' && !initialLoadComplete) {
-          console.log('🔐 useAuth: Ignoring SIGNED_IN during initial load, waiting for INITIAL_SESSION');
-          return;
-        }
-
+        // Ignore SIGNED_IN events ONLY during initial load
+        if (event === 'SIGNED_IN' && !initialLoadComplete) return;
         await handleAuthChange(session);
       }
     );
 
     // Get initial session
-    console.log('🔐 useAuth: Getting initial session');
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      console.log('🔐 useAuth: Initial session retrieved', { hasSession: !!session });
       await handleAuthChange(session);
     });
 
     return () => {
-      console.log('🔐 useAuth: Cleanup');
       mounted = false;
       clearTimeout(safetyTimeout);
       subscription.unsubscribe();
@@ -155,15 +122,7 @@ export function useAuth() {
   }, []);
 
   const fetchUserData = async (userId: string): Promise<boolean> => {
-    console.log('🔐 fetchUserData: Starting for userId:', userId);
-
     try {
-      console.log('🔐 fetchUserData: Fetching profile and roles...');
-
-      // Query them sequentially with timeout to see which one hangs
-      console.log('🔐 fetchUserData: Step 1 - Querying profiles table...');
-      const profileQueryStart = Date.now();
-
       const profileQuery = supabase
         .from('profiles')
         .select('*')
@@ -171,23 +130,11 @@ export function useAuth() {
         .maybeSingle();
 
       const profileTimeout = new Promise<never>((_, reject) =>
-        setTimeout(() => {
-          console.error('🔐 fetchUserData: PROFILE QUERY TIMEOUT after 8 seconds!');
-          reject(new Error('Profile query timeout'));
-        }, 8000)
+        setTimeout(() => reject(new Error('Profile query timeout')), 8000)
       );
 
       const profileResult: any = await Promise.race([profileQuery, profileTimeout])
-        .catch(err => {
-          console.error('🔐 fetchUserData: Profile query error:', err.message);
-          return { data: null, error: err, status: 0, statusText: '', count: null };
-        });
-
-      const profileQueryTime = Date.now() - profileQueryStart;
-      console.log(`🔐 fetchUserData: Profile query completed in ${profileQueryTime}ms`);
-
-      console.log('🔐 fetchUserData: Step 2 - Querying user_roles table...');
-      const rolesQueryStart = Date.now();
+        .catch(() => ({ data: null, error: { message: 'Profile query timeout' }, status: 0, statusText: '', count: null }));
 
       const rolesQuery = supabase
         .from('user_roles')
@@ -195,75 +142,37 @@ export function useAuth() {
         .eq('user_id', userId);
 
       const rolesTimeout = new Promise<never>((_, reject) =>
-        setTimeout(() => {
-          console.error('🔐 fetchUserData: ROLES QUERY TIMEOUT after 8 seconds!');
-          reject(new Error('Roles query timeout'));
-        }, 8000)
+        setTimeout(() => reject(new Error('Roles query timeout')), 8000)
       );
 
       const rolesResult: any = await Promise.race([rolesQuery, rolesTimeout])
-        .catch(err => {
-          console.error('🔐 fetchUserData: Roles query error:', err.message);
-          return { data: null, error: err, status: 0, statusText: '', count: null };
-        });
-
-      const rolesQueryTime = Date.now() - rolesQueryStart;
-      console.log(`🔐 fetchUserData: Roles query completed in ${rolesQueryTime}ms`);
-
-      console.log('🔐 fetchUserData: Profile result:', profileResult);
-      if (profileResult.error) {
-        console.error('🔐 fetchUserData: Profile error details:', {
-          message: profileResult.error.message,
-          code: profileResult.error.code,
-          details: profileResult.error.details,
-          hint: profileResult.error.hint
-        });
-      }
-
-      console.log('🔐 fetchUserData: Roles result:', rolesResult);
-      if (rolesResult.error) {
-        console.error('🔐 fetchUserData: Roles error details:', {
-          message: rolesResult.error.message,
-          code: rolesResult.error.code,
-          details: rolesResult.error.details,
-          hint: rolesResult.error.hint
-        });
-      }
+        .catch(() => ({ data: null, error: { message: 'Roles query timeout' }, status: 0, statusText: '', count: null }));
 
       // Check for network errors (status 0 = ERR_CONNECTION_CLOSED)
       if (profileResult.status === 0 || rolesResult.status === 0) {
-        console.error('🔐 fetchUserData: Network error detected, aborting this attempt');
-        return false; // Signal failure, will retry on next auth event
+        return false;
       }
 
       // Set profile
       if (profileResult.data) {
-        console.log('🔐 fetchUserData: Setting profile');
         setProfile(profileResult.data as UserProfile);
-      } else {
-        console.warn('🔐 fetchUserData: No profile found!');
       }
 
       // Set roles and fetch permissions
       if (rolesResult.data) {
         const userRoles = rolesResult.data as UserRole[];
-        console.log('🔐 fetchUserData: Setting roles:', userRoles);
         setRoles(userRoles);
 
         // Fetch permissions for these roles
         if (userRoles.length > 0) {
           const roleNames = userRoles.map(r => r.role);
-          console.log('🔐 fetchUserData: Fetching permissions for roles:', roleNames);
           const permResult = await supabase
             .from('role_permissions')
             .select('*')
             .in('role', roleNames);
 
-          console.log('🔐 fetchUserData: Permissions result:', permResult);
-
           // Check for permission fetch network error
           if (permResult.status === 0) {
-            console.error('🔐 fetchUserData: Network error fetching permissions, aborting');
             return false;
           }
 
@@ -289,21 +198,14 @@ export function useAuth() {
               }
             });
 
-            console.log('🔐 fetchUserData: Setting merged permissions:', mergedPermissions);
             setPermissions(Object.values(mergedPermissions));
           }
-        } else {
-          console.warn('🔐 fetchUserData: User has NO roles!');
         }
-      } else {
-        console.warn('🔐 fetchUserData: No roles found for user!');
       }
 
-      console.log('🔐 fetchUserData: Completed successfully');
-      return true; // Success!
-    } catch (error) {
-      console.error('🔐 fetchUserData: ERROR occurred:', error);
-      return false; // Signal failure
+      return true;
+    } catch {
+      return false;
     }
   };
 

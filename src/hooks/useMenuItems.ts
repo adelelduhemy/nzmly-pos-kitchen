@@ -9,6 +9,7 @@ export interface MenuItemFromDB {
     description_en: string | null;
     price: number;
     category: string;
+    category_id?: string | null;
     image_url: string | null;
     is_available: boolean;
 }

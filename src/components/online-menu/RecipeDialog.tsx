@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -71,7 +71,8 @@ const RecipeDialog: React.FC<RecipeDialogProps> = ({ menuItemId, menuItemName })
                 .insert({
                     menu_item_id: menuItemId,
                     inventory_item_id: selectedIngredient,
-                    quantity: parseFloat(quantity)
+                    quantity: parseFloat(quantity),
+                    unit: 'kg'
                 });
 
             if (error) throw error;
@@ -122,6 +123,7 @@ const RecipeDialog: React.FC<RecipeDialogProps> = ({ menuItemId, menuItemName })
             <DialogContent className="max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>{isRTL ? `وصفة: ${menuItemName}` : `Recipe: ${menuItemName}`}</DialogTitle>
+                    <DialogDescription>{isRTL ? 'إدارة مكونات الوصفة' : 'Manage recipe ingredients'}</DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-6">
@@ -166,7 +168,7 @@ const RecipeDialog: React.FC<RecipeDialogProps> = ({ menuItemId, menuItemName })
                                     <TableHead className="text-right">{isRTL ? 'المكون' : 'Ingredient'}</TableHead>
                                     <TableHead className="text-right">{isRTL ? 'الكمية' : 'Quantity'}</TableHead>
                                     <TableHead className="text-right">{isRTL ? 'التكلفة التقديرية' : 'Est. Cost'}</TableHead>
-                                    <TableHead w-12></TableHead>
+                                    <TableHead className="w-12"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>

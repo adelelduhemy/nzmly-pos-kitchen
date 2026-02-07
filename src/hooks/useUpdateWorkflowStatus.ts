@@ -14,6 +14,16 @@ export const useUpdateWorkflowStatus = () => {
 
     return useMutation({
         mutationFn: async ({ orderId, status }: UpdateWorkflowStatusParams) => {
+            // If cancelling order, return stock first
+            if (status === 'cancelled') {
+                try {
+                    await supabase.rpc('return_order_stock', { order_id: orderId });
+                } catch (err) {
+                    console.error('Failed to return stock:', err);
+                    // Continue with cancellation even if stock return fails
+                }
+            }
+
             const { data, error } = await supabase
                 .from('orders')
                 .update({ status, updated_at: new Date().toISOString() })

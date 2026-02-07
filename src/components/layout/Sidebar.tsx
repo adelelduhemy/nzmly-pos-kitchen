@@ -31,36 +31,32 @@ interface NavItem {
   icon: React.ElementType;
   labelKey: string;
   path: string;
-  roles: UserRole[];
+  resource: string;
 }
 
 const navItems: NavItem[] = [
-  { icon: LayoutDashboard, labelKey: 'nav.dashboard', path: '/dashboard', roles: ['owner', 'manager', 'cashier'] },
-  { icon: ShoppingCart, labelKey: 'nav.pos', path: '/pos', roles: ['owner', 'manager', 'cashier'] },
-  { icon: ClipboardList, labelKey: 'nav.orders', path: '/orders', roles: ['owner', 'manager', 'cashier'] },
-  { icon: ChefHat, labelKey: 'nav.kds', path: '/kds', roles: ['owner', 'manager', 'kitchen'] },
-  { icon: UtensilsCrossed, labelKey: 'nav.menu', path: '/menu', roles: ['owner', 'manager'] },
-  { icon: Grid3X3, labelKey: 'nav.tables', path: '/tables', roles: ['owner', 'manager', 'cashier'] },
-  { icon: Package, labelKey: 'nav.inventory', path: '/inventory', roles: ['owner', 'manager', 'inventory'] },
-  { icon: BarChart3, labelKey: 'nav.reports', path: '/reports', roles: ['owner', 'manager'] },
-  { icon: Settings, labelKey: 'nav.settings', path: '/settings', roles: ['owner'] },
+  { icon: LayoutDashboard, labelKey: 'nav.dashboard', path: '/dashboard', resource: 'dashboard' },
+  { icon: ShoppingCart, labelKey: 'nav.pos', path: '/pos', resource: 'pos' },
+  { icon: ClipboardList, labelKey: 'nav.orders', path: '/orders', resource: 'orders' },
+  { icon: ChefHat, labelKey: 'nav.kds', path: '/kds', resource: 'kds' },
+  { icon: UtensilsCrossed, labelKey: 'nav.menu', path: '/menu', resource: 'menu' },
+  { icon: Grid3X3, labelKey: 'nav.tables', path: '/tables', resource: 'tables' },
+  { icon: Package, labelKey: 'nav.inventory', path: '/inventory', resource: 'inventory' },
+  { icon: BarChart3, labelKey: 'nav.reports', path: '/reports', resource: 'reports' },
+  { icon: Settings, labelKey: 'nav.settings', path: '/settings', resource: 'settings' },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   const { t, i18n } = useTranslation();
   const location = useLocation();
-  const { user, hasPermission, signOut } = useAuthContext();
+  const { user, profile, hasPermission, signOut } = useAuthContext();
   const isRTL = i18n.language === 'ar';
 
   // Alias signOut to logout for compatibility
   const logout = signOut;
 
   const filteredNavItems = navItems.filter(
-    (item) => {
-      // Map path to resource name (simple mapping for now)
-      const resource = item.path.replace('/', '');
-      return hasPermission(resource);
-    }
+    (item) => hasPermission(item.resource)
   );
 
   return (
@@ -149,15 +145,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
       {/* User & Logout */}
       <div className="p-3 border-t border-sidebar-border">
         <AnimatePresence mode="wait">
-          {!isCollapsed && user && (
+          {!isCollapsed && profile && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="mb-3 px-3 py-2"
             >
-              <p className="font-medium text-sidebar-foreground truncate">{user.name}</p>
-              <p className="text-sm text-muted-foreground capitalize">{user.role}</p>
+              <p className="font-medium text-sidebar-foreground truncate">{profile.name}</p>
+              <p className="text-sm text-muted-foreground capitalize">{user?.email}</p>
             </motion.div>
           )}
         </AnimatePresence>

@@ -34,9 +34,9 @@ const MinimalFastTemplate = ({
   const primaryColor = settings?.primary_color || '#10B981';
 
   const visibleCategories = categories.filter((cat: any) => categoryItemCounts[cat.id] > 0);
-  
-  const categoryItems = selectedCategory 
-    ? menuItems.filter((item: any) => item.category === selectedCategory)
+
+  const categoryItems = selectedCategory
+    ? menuItems.filter((item: any) => item.category_id === selectedCategory)
     : [];
 
   const selectedCategoryData = selectedCategory
@@ -45,9 +45,9 @@ const MinimalFastTemplate = ({
 
   const searchResults = searchQuery.trim()
     ? menuItems.filter((item: any) =>
-        item.name_ar?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.name_en?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+      item.name_ar?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.name_en?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
     : null;
 
   return (

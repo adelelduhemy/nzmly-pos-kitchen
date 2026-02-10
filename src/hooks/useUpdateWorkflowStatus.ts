@@ -7,13 +7,22 @@ type WorkflowStatus = 'pending' | 'preparing' | 'ready' | 'served' | 'completed'
 interface UpdateWorkflowStatusParams {
     orderId: string;
     status: WorkflowStatus;
+    expectedVersion: number; // Required for optimistic locking
+}
+
+interface RpcResponse {
+    success: boolean;
+    error?: string;
+    order?: any;
+    current_version?: number;
+    current_status?: string;
 }
 
 export const useUpdateWorkflowStatus = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ orderId, status }: UpdateWorkflowStatusParams) => {
+        mutationFn: async ({ orderId, status, expectedVersion }: UpdateWorkflowStatusParams) => {
             // If cancelling order, return stock first
             if (status === 'cancelled') {
                 try {
@@ -24,27 +33,36 @@ export const useUpdateWorkflowStatus = () => {
                 }
             }
 
-            const { data, error } = await supabase
-                .from('orders')
-                .update({ status, updated_at: new Date().toISOString() })
-                .eq('id', orderId)
-                .select()
-                .single();
+            // Use the new RPC with optimistic locking
+            const { data, error } = await supabase.rpc('update_order_status', {
+                p_order_id: orderId,
+                p_new_status: status,
+                p_expected_version: expectedVersion,
+            });
 
             if (error) throw error;
-            
-            // If order is completed, free the table (table_number in orders stores the table UUID)
-            if (status === 'completed' && data.table_number) {
+
+            const result = data as unknown as RpcResponse;
+
+            if (!result.success) {
+                // Optimistic lock failure or invalid transition
+                throw new Error(result.error || 'Update failed');
+            }
+
+            const updatedOrder = result.order;
+
+            // If order is completed, free the table
+            if (status === 'completed' && updatedOrder.table_number) {
                 await supabase
                     .from('restaurant_tables')
-                    .update({ 
+                    .update({
                         status: 'available',
-                        current_order_id: null 
+                        current_order_id: null
                     })
-                    .eq('id', data.table_number);
+                    .eq('id', updatedOrder.table_number);
             }
-            
-            return data;
+
+            return updatedOrder;
         },
         onSuccess: (data, variables) => {
             const statusMessages: Record<WorkflowStatus, string> = {
@@ -55,7 +73,7 @@ export const useUpdateWorkflowStatus = () => {
                 'completed': 'Order completed - table freed',
                 'cancelled': 'Order has been cancelled',
             };
-            
+
             toast.success(statusMessages[variables.status] || 'Order status updated', {
                 description: `Order ${data.order_number} updated successfully`,
             });
@@ -65,12 +83,25 @@ export const useUpdateWorkflowStatus = () => {
             queryClient.invalidateQueries({ queryKey: ['order-stats'] });
             queryClient.invalidateQueries({ queryKey: ['orders'] });
             queryClient.invalidateQueries({ queryKey: ['restaurant_tables'] });
+            queryClient.invalidateQueries({ queryKey: ['customer_stats'] });
         },
         onError: (error: any) => {
             console.error('Update order status error:', error);
-            toast.error('Failed to cancel order', {
-                description: error.message || 'Please try again',
-            });
+
+            // Check for conflict error (optimistic lock failure)
+            if (error.message?.includes('Conflict')) {
+                toast.error('Conflict Detected', {
+                    description: 'This order was updated by someone else. Please refresh and try again.',
+                });
+            } else if (error.message?.includes('Invalid status transition')) {
+                toast.error('Cannot Update Status', {
+                    description: error.message,
+                });
+            } else {
+                toast.error('Failed to update order', {
+                    description: error.message || 'Please try again',
+                });
+            }
         },
     });
 };

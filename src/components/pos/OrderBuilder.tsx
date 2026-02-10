@@ -134,7 +134,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({ onBack }) => {
 
     // Check stock availability
     const stockCheck = await checkMenuItemStock(selectedItem.id, itemQuantity);
-    
+
     if (!stockCheck.available) {
       toast.error('Insufficient stock', {
         description: `Missing: ${stockCheck.insufficientIngredients.join(', ')}`
@@ -164,7 +164,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({ onBack }) => {
   };
 
   if (showPayment) {
-    return <PaymentScreen onBack={() => setShowPayment(false)} />;
+    return <PaymentScreen onBack={() => setShowPayment(false)} initialCustomerId={selectedCustomerId} />;
   }
 
   return (

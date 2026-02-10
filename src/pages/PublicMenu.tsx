@@ -82,7 +82,9 @@ const PublicMenu = () => {
   const categoryItemCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     menuItems.forEach((item: any) => {
-      counts[item.category] = (counts[item.category] || 0) + 1;
+      if (item.category_id) {
+        counts[item.category_id] = (counts[item.category_id] || 0) + 1;
+      }
     });
     return counts;
   }, [menuItems]);

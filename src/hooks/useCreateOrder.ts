@@ -11,6 +11,7 @@ interface CreateOrderParams {
     discount: number;
     total: number;
     paymentMethod: 'cash' | 'card' | 'online';
+    customerId?: string | null;
     items: Array<{
         menuItemId?: string;
         dishName: string;
@@ -56,7 +57,8 @@ export const useCreateOrder = () => {
                 p_payment_method: params.paymentMethod,
                 p_payment_status: 'unpaid', // Default to unpaid
                 p_notes: params.notes || null,
-                p_items: params.items as any // Cast to any to verify JSON compatibility,
+                p_items: params.items as any, // Cast to any to verify JSON compatibility
+                p_customer_id: params.customerId || null,
             });
 
             if (error) {
@@ -64,18 +66,20 @@ export const useCreateOrder = () => {
                 throw error;
             }
 
-            // The RPC returns { order: ..., status: ... }
+            // The RPC returns { id, order_number, status, is_duplicate }
             const result = data as any;
-            return { order: result.order, status: result.status };
+            const order = result.order || result; // Support both wrapped and flat format
+            const isDuplicate = result.is_duplicate || result.order?.is_duplicate;
+            return { order, status: isDuplicate ? 'existing' : 'created' };
         },
         onSuccess: (data) => {
             if (data.status === 'existing') {
                 toast.success('Order recovered', {
-                    description: `Order ${data.order.order_number} already existed (idempotency check).`,
+                    description: `Order ${data.order?.order_number || 'unknown'} already existed (idempotency check).`,
                 });
             } else {
                 toast.success('Order placed successfully!', {
-                    description: `Order ${data.order.order_number} has been created`,
+                    description: `Order ${data.order?.order_number || ''} has been created`,
                 });
             }
 
@@ -83,6 +87,7 @@ export const useCreateOrder = () => {
             queryClient.invalidateQueries({ queryKey: ['orders'] });
             queryClient.invalidateQueries({ queryKey: ['inventory_items'] });
             queryClient.invalidateQueries({ queryKey: ['menu_items'] });
+            queryClient.invalidateQueries({ queryKey: ['customer_stats'] });
         },
         onError: (error: any) => {
             console.error('Create order error:', error);

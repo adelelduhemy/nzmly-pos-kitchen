@@ -1245,6 +1245,15 @@ export type Database = {
         Returns: boolean
       }
       is_owner_or_manager: { Args: { _user_id: string }; Returns: boolean }
+      return_order_stock: { Args: { order_id: string }; Returns: void }
+      update_order_status: {
+        Args: {
+          p_order_id: string
+          p_new_status: string
+          p_expected_version: number
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "owner" | "manager" | "cashier" | "kitchen" | "inventory"

@@ -34,6 +34,7 @@ export const useUpdateOrderStatus = () => {
             queryClient.invalidateQueries({ queryKey: ['order-history'] });
             queryClient.invalidateQueries({ queryKey: ['order-stats'] });
             queryClient.invalidateQueries({ queryKey: ['orders'] });
+            queryClient.invalidateQueries({ queryKey: ['customer_stats'] });
         },
         onError: (error: any) => {
             console.error('Update order status error:', error);

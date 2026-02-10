@@ -20,26 +20,26 @@ const KDS: React.FC = () => {
   // Play sound when new pending orders arrive
   useEffect(() => {
     const pendingCount = orders.filter((o) => o.status === 'pending').length;
-    
+
     if (pendingCount > previousPendingCount.current && previousPendingCount.current > 0) {
       // New order arrived - play notification beep using Web Audio API
       try {
         const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
-        
+
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
-        
+
         oscillator.frequency.value = 800; // Hz
         oscillator.type = 'sine';
-        
+
         gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-        
+
         oscillator.start(audioContext.currentTime);
         oscillator.stop(audioContext.currentTime + 0.5);
-        
+
         // Second beep
         setTimeout(() => {
           const osc2 = audioContext.createOscillator();
@@ -57,12 +57,12 @@ const KDS: React.FC = () => {
         console.log('[KDS] Audio notification not supported');
       }
     }
-    
+
     previousPendingCount.current = pendingCount;
   }, [orders]);
 
-  const handleStatusUpdate = (orderId: string, newStatus: string) => {
-    updateStatus.mutate({ orderId, status: newStatus });
+  const handleStatusUpdate = (orderId: string, newStatus: string, version: number) => {
+    updateStatus.mutate({ orderId, status: newStatus, expectedVersion: version });
   };
 
   // Group orders by status

@@ -17,6 +17,7 @@ export interface OrderHistoryItem {
     cashier_id: string | null;
     created_at: string;
     updated_at: string;
+    customers?: { name: string } | null;
     order_items: Array<{
         id: string;
         dish_name: string;
@@ -44,6 +45,7 @@ export const useOrderHistory = (params: UseOrderHistoryParams = {}) => {
                 .from('orders')
                 .select(`
           *,
+          customers (name),
           order_items (
             id,
             dish_name,
@@ -83,7 +85,7 @@ export const useOrderHistory = (params: UseOrderHistoryParams = {}) => {
             if (error) throw error;
 
             // Type assertion since Supabase types may not have payment_status yet
-            return (data || []) as OrderHistoryItem[];
+            return (data || []) as unknown as OrderHistoryItem[];
         },
         refetchInterval: 30000, // Refetch every 30 seconds
     });

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { 
-  DollarSign, 
-  TrendingUp, 
-  TrendingDown, 
-  Clock, 
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Clock,
   Plus,
   Calendar,
   CreditCard,
@@ -13,7 +13,8 @@ import {
   Smartphone,
   FileText,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,14 +82,14 @@ const FinancialManagement = () => {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === 'ar';
   const { user } = useAuthContext();
-  
+
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [currentShift, setCurrentShift] = useState<Shift | null>(null);
   const [loading, setLoading] = useState(true);
   const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false);
   const [isShiftDialogOpen, setIsShiftDialogOpen] = useState(false);
-  
+
   // Form states
   const [newExpense, setNewExpense] = useState({
     category: '',
@@ -100,20 +101,72 @@ const FinancialManagement = () => {
   const [shiftNotes, setShiftNotes] = useState('');
 
   // Summary calculations
-  const todayExpenses = expenses
-    .filter(e => e.expense_date === new Date().toISOString().split('T')[0])
-    .reduce((sum, e) => sum + Number(e.amount), 0);
-  
-  const monthExpenses = expenses
-    .filter(e => {
-      const date = new Date(e.expense_date);
-      const now = new Date();
-      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-    })
-    .reduce((sum, e) => sum + Number(e.amount), 0);
+  const [todayOrdersTotal, setTodayOrdersTotal] = useState(0);
+  const [todayCashSales, setTodayCashSales] = useState(0);
+  const [todayCardSales, setTodayCardSales] = useState(0);
+  const [todayOnlineSales, setTodayOnlineSales] = useState(0);
+  const [todayExpensesTotal, setTodayExpensesTotal] = useState(0);
+  const [monthExpensesTotal, setMonthExpensesTotal] = useState(0);
 
-  const todaySales = currentShift?.total_sales || 0;
-  const todayProfit = todaySales - todayExpenses;
+  useEffect(() => {
+    const fetchStats = async () => {
+      // Use local date for accurate reporting
+      const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+      const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toLocaleDateString('en-CA');
+
+      // 1. Fetch Today's Orders
+      const { data: ordersData } = await supabase
+        .from('orders')
+        .select('total, payment_method')
+        .gte('created_at', `${today}T00:00:00`)
+        .lte('created_at', `${today}T23:59:59`)
+        .not('status', 'eq', 'cancelled');
+
+      let total = 0;
+      let cash = 0;
+      let card = 0;
+      let online = 0;
+
+      ordersData?.forEach(order => {
+        const amount = Number(order.total);
+        total += amount;
+        if (order.payment_method === 'cash') cash += amount;
+        else if (order.payment_method === 'card') card += amount;
+        else if (order.payment_method === 'online') online += amount;
+      });
+
+      setTodayOrdersTotal(total);
+      setTodayCashSales(cash);
+      setTodayCardSales(card);
+      setTodayOnlineSales(online);
+
+      // 2. Fetch Today's Expenses
+      // Note: expense_date is usually 'YYYY-MM-DD'
+      const { data: todayExpData } = await supabase
+        .from('expenses')
+        .select('amount')
+        .eq('expense_date', today);
+
+      const todayExp = todayExpData?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+      setTodayExpensesTotal(todayExp);
+
+      // 3. Fetch Month's Expenses
+      const { data: monthExpData } = await supabase
+        .from('expenses')
+        .select('amount')
+        .gte('expense_date', startOfMonth)
+        .lte('expense_date', today); // Up to today
+
+      const monthExp = monthExpData?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+      setMonthExpensesTotal(monthExp);
+    };
+
+    fetchStats();
+  }, [expenses]); // Re-fetch when expenses change
+
+  const todaySales = todayOrdersTotal;
+  const todayProfit = todaySales - todayExpensesTotal;
+
 
   useEffect(() => {
     fetchData();
@@ -128,7 +181,7 @@ const FinancialManagement = () => {
         .select('*')
         .order('expense_date', { ascending: false })
         .limit(100);
-      
+
       if (expensesError) throw expensesError;
       setExpenses(expensesData || []);
 
@@ -138,7 +191,7 @@ const FinancialManagement = () => {
         .select('*')
         .order('shift_date', { ascending: false })
         .limit(30);
-      
+
       if (shiftsError) throw shiftsError;
       setShifts(shiftsData || []);
 
@@ -181,7 +234,7 @@ const FinancialManagement = () => {
         title: isAr ? 'تم بنجاح' : 'Success',
         description: isAr ? 'تم إضافة المصروف' : 'Expense added successfully',
       });
-      
+
       setNewExpense({ category: '', description: '', amount: '' });
       setIsExpenseDialogOpen(false);
       fetchData();
@@ -190,6 +243,31 @@ const FinancialManagement = () => {
       toast({
         title: isAr ? 'خطأ' : 'Error',
         description: isAr ? 'فشل في إضافة المصروف' : 'Failed to add expense',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteExpense = async (expenseId: string) => {
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', expenseId);
+
+      if (error) throw error;
+
+      toast({
+        title: isAr ? 'تم بنجاح' : 'Success',
+        description: isAr ? 'تم حذف المصروف' : 'Expense deleted',
+      });
+
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      toast({
+        title: isAr ? 'خطأ' : 'Error',
+        description: isAr ? 'فشل في حذف المصروف' : 'Failed to delete expense',
         variant: 'destructive',
       });
     }
@@ -218,7 +296,7 @@ const FinancialManagement = () => {
         title: isAr ? 'تم بنجاح' : 'Success',
         description: isAr ? 'تم فتح الشيفت' : 'Shift opened successfully',
       });
-      
+
       setOpeningCash('');
       setIsShiftDialogOpen(false);
       fetchData();
@@ -243,31 +321,38 @@ const FinancialManagement = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('shifts')
-        .update({
-          ended_at: new Date().toISOString(),
-          closing_cash: parseFloat(closingCash),
-          notes: shiftNotes || null,
-          status: 'closed',
-        })
-        .eq('id', currentShift.id);
+      const { data, error } = await supabase.rpc('close_shift_with_sales', {
+        p_shift_id: currentShift.id,
+        p_closing_cash: parseFloat(closingCash),
+        p_notes: shiftNotes || null,
+      });
 
       if (error) throw error;
 
+      const result = data as any;
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to close shift');
+      }
+
       toast({
         title: isAr ? 'تم بنجاح' : 'Success',
-        description: isAr ? 'تم إقفال الشيفت' : 'Shift closed successfully',
+        description: isAr
+          ? `تم إقفال الشيفت • إجمالي المبيعات: ${result.summary.total_sales} ر.س`
+          : `Shift closed • Total sales: SAR ${result.summary.total_sales} `,
       });
-      
+
       setClosingCash('');
       setShiftNotes('');
+      setShiftNotes('');
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error closing shift:', error);
+      // Refresh data in case shift state was stale (e.g. already closed)
+      fetchData();
+
       toast({
         title: isAr ? 'خطأ' : 'Error',
-        description: isAr ? 'فشل في إقفال الشيفت' : 'Failed to close shift',
+        description: error.message || (isAr ? 'فشل في إقفال الشيفت' : 'Failed to close shift'),
         variant: 'destructive',
       });
     }
@@ -470,7 +555,7 @@ const FinancialManagement = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">{isAr ? 'مصروفات اليوم' : "Today's Expenses"}</p>
-                <p className="text-2xl font-bold">{formatCurrency(todayExpenses, i18n.language)}</p>
+                <p className="text-2xl font-bold">{formatCurrency(todayExpensesTotal, i18n.language)}</p>
               </div>
             </div>
           </CardContent>
@@ -479,12 +564,12 @@ const FinancialManagement = () => {
         <Card className="card-pos">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 ${todayProfit >= 0 ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-orange-100 dark:bg-orange-900/30'} rounded-xl flex items-center justify-center`}>
-                <DollarSign className={`w-6 h-6 ${todayProfit >= 0 ? 'text-blue-600' : 'text-orange-600'}`} />
+              <div className={`w - 12 h - 12 ${todayProfit >= 0 ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-orange-100 dark:bg-orange-900/30'} rounded - xl flex items - center justify - center`}>
+                <DollarSign className={`w - 6 h - 6 ${todayProfit >= 0 ? 'text-blue-600' : 'text-orange-600'} `} />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">{isAr ? 'صافي اليوم' : "Today's Net"}</p>
-                <p className={`text-2xl font-bold ${todayProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <p className={`text - 2xl font - bold ${todayProfit >= 0 ? 'text-green-600' : 'text-red-600'} `}>
                   {formatCurrency(todayProfit, i18n.language)}
                 </p>
               </div>
@@ -500,7 +585,7 @@ const FinancialManagement = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">{isAr ? 'مصروفات الشهر' : 'Month Expenses'}</p>
-                <p className="text-2xl font-bold">{formatCurrency(monthExpenses, i18n.language)}</p>
+                <p className="text-2xl font-bold">{formatCurrency(monthExpensesTotal, i18n.language)}</p>
               </div>
             </div>
           </CardContent>
@@ -543,13 +628,23 @@ const FinancialManagement = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="text-left">
-                        <p className="font-bold text-red-600">
-                          -{formatCurrency(expense.amount, i18n.language)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(expense.expense_date).toLocaleDateString(isAr ? 'ar-SA' : 'en-US')}
-                        </p>
+                      <div className="flex items-center gap-3">
+                        <div className="text-left">
+                          <p className="font-bold text-red-600">
+                            -{formatCurrency(expense.amount, i18n.language)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(expense.expense_date).toLocaleDateString(isAr ? 'ar-SA' : 'en-US')}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteExpense(expense.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -577,8 +672,8 @@ const FinancialManagement = () => {
                       className="flex items-center justify-between p-4 bg-muted/50 rounded-lg"
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 ${shift.status === 'open' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-900/30'} rounded-lg flex items-center justify-center`}>
-                          <Clock className={`w-5 h-5 ${shift.status === 'open' ? 'text-green-600' : 'text-gray-600'}`} />
+                        <div className={`w - 10 h - 10 ${shift.status === 'open' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-900/30'} rounded - lg flex items - center justify - center`}>
+                          <Clock className={`w - 5 h - 5 ${shift.status === 'open' ? 'text-green-600' : 'text-gray-600'} `} />
                         </div>
                         <div>
                           <p className="font-medium">
@@ -637,21 +732,21 @@ const FinancialManagement = () => {
                         <Banknote className="w-4 h-4" />
                         <span>{isAr ? 'مبيعات نقدية' : 'Cash Sales'}</span>
                       </div>
-                      <span className="font-bold">{formatCurrency(currentShift?.cash_sales || 0, i18n.language)}</span>
+                      <span className="font-bold">{formatCurrency(todayCashSales, i18n.language)}</span>
                     </div>
                     <div className="flex justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                       <div className="flex items-center gap-2">
                         <CreditCard className="w-4 h-4" />
                         <span>{isAr ? 'مبيعات بطاقات' : 'Card Sales'}</span>
                       </div>
-                      <span className="font-bold">{formatCurrency(currentShift?.card_sales || 0, i18n.language)}</span>
+                      <span className="font-bold">{formatCurrency(todayCardSales, i18n.language)}</span>
                     </div>
                     <div className="flex justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                       <div className="flex items-center gap-2">
                         <Smartphone className="w-4 h-4" />
                         <span>{isAr ? 'مبيعات إلكترونية' : 'Online Sales'}</span>
                       </div>
-                      <span className="font-bold">{formatCurrency(currentShift?.online_sales || 0, i18n.language)}</span>
+                      <span className="font-bold">{formatCurrency(todayOnlineSales, i18n.language)}</span>
                     </div>
                     <div className="flex justify-between p-3 bg-green-100 dark:bg-green-900/40 rounded-lg font-bold">
                       <span>{isAr ? 'إجمالي الإيرادات' : 'Total Revenue'}</span>
@@ -680,13 +775,13 @@ const FinancialManagement = () => {
                     })}
                     <div className="flex justify-between p-3 bg-red-100 dark:bg-red-900/40 rounded-lg font-bold">
                       <span>{isAr ? 'إجمالي المصروفات' : 'Total Expenses'}</span>
-                      <span className="text-red-600">-{formatCurrency(todayExpenses, i18n.language)}</span>
+                      <span className="text-red-600">-{formatCurrency(todayExpensesTotal, i18n.language)}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Net Profit */}
-                <div className={`p-4 rounded-lg ${todayProfit >= 0 ? 'bg-green-100 dark:bg-green-900/40' : 'bg-red-100 dark:bg-red-900/40'}`}>
+                <div className={`p - 4 rounded - lg ${todayProfit >= 0 ? 'bg-green-100 dark:bg-green-900/40' : 'bg-red-100 dark:bg-red-900/40'} `}>
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       {todayProfit >= 0 ? (
@@ -696,7 +791,7 @@ const FinancialManagement = () => {
                       )}
                       <span className="font-bold text-lg">{isAr ? 'صافي الربح' : 'Net Profit'}</span>
                     </div>
-                    <span className={`text-2xl font-bold ${todayProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <span className={`text - 2xl font - bold ${todayProfit >= 0 ? 'text-green-600' : 'text-red-600'} `}>
                       {formatCurrency(todayProfit, i18n.language)}
                     </span>
                   </div>

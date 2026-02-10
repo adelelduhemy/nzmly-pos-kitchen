@@ -34,9 +34,9 @@ const ModernDarkTemplate = ({
   const primaryColor = settings?.primary_color || '#8B5CF6';
 
   const visibleCategories = categories.filter((cat: any) => categoryItemCounts[cat.id] > 0);
-  
-  const categoryItems = selectedCategory 
-    ? menuItems.filter((item: any) => item.category === selectedCategory)
+
+  const categoryItems = selectedCategory
+    ? menuItems.filter((item: any) => item.category_id === selectedCategory)
     : [];
 
   const selectedCategoryData = selectedCategory
@@ -142,9 +142,9 @@ const ModernDarkTemplate = ({
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     {settings?.logo_url ? (
-                      <img 
-                        src={settings.logo_url} 
-                        alt="Logo" 
+                      <img
+                        src={settings.logo_url}
+                        alt="Logo"
                         className="w-12 h-12 rounded-full object-cover ring-2 ring-zinc-700"
                       />
                     ) : (

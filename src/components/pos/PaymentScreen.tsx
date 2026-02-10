@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { ArrowLeft, CreditCard, Banknote, Smartphone, Printer, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,18 +9,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useOrderStore } from '@/store/orderStore';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { useToast } from '@/hooks/use-toast';
 import { useCreateOrder } from '@/hooks/useCreateOrder';
 import { useTables } from '@/hooks/useTables';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PaymentScreenProps {
   onBack: () => void;
+  initialCustomerId?: string | null;
 }
 
 type PaymentMethod = 'cash' | 'card' | 'online';
 
-const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack }) => {
+const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack, initialCustomerId }) => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -31,7 +35,18 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack }) => {
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [amountTendered, setAmountTendered] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>(initialCustomerId || 'none');
   const [isComplete, setIsComplete] = useState(false);
+
+  // Fetch customers for linking
+  const { data: customers = [] } = useQuery({
+    queryKey: ['customers'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('customers').select('id, name, phone').order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
   const [completedOrder, setCompletedOrder] = useState<any>(null);
 
   const total = getTotal();
@@ -73,6 +88,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack }) => {
         discount: 0,
         total: getTotal(),
         paymentMethod,
+        customerId: selectedCustomerId !== 'none' ? selectedCustomerId : null,
         items: orderItems,
       });
 

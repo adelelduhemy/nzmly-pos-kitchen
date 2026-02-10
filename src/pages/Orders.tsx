@@ -304,6 +304,7 @@ const Orders = () => {
                 <TableRow>
                   <TableHead>{t('kds.orderNumber')}</TableHead>
                   <TableHead>{t('pos.type')}</TableHead>
+                  <TableHead>Customer</TableHead>
                   <TableHead>{t('tables.title')}</TableHead>
                   <TableHead>{t('common.total')}</TableHead>
                   <TableHead>Payment Method</TableHead>
@@ -326,6 +327,7 @@ const Orders = () => {
                           <span className="capitalize">{order.order_type}</span>
                         </div>
                       </TableCell>
+                      <TableCell>{order.customers?.name || '-'}</TableCell>
                       <TableCell>{order.table_number || '-'}</TableCell>
                       <TableCell className="font-semibold">
                         {formatCurrency(Number(order.total), i18n.language)}
@@ -451,6 +453,7 @@ const Orders = () => {
                       updateWorkflowStatus.mutate({
                         orderId: selectedOrder.id,
                         status: 'completed',
+                        expectedVersion: (selectedOrder as any).version ?? 1,
                       });
                       setSelectedOrder(null);
                     }}
@@ -517,6 +520,7 @@ const Orders = () => {
                       updateWorkflowStatus.mutate({
                         orderId: selectedOrder.id,
                         status: 'cancelled',
+                        expectedVersion: (selectedOrder as any).version ?? 1,
                       });
                       setSelectedOrder(null);
                     }}

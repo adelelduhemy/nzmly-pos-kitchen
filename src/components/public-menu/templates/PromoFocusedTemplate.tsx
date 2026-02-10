@@ -37,9 +37,9 @@ const PromoFocusedTemplate = ({
   const secondaryColor = settings?.secondary_color || '#F97316';
 
   const visibleCategories = categories.filter((cat: any) => categoryItemCounts[cat.id] > 0);
-  
-  const categoryItems = selectedCategory 
-    ? menuItems.filter((item: any) => item.category === selectedCategory)
+
+  const categoryItems = selectedCategory
+    ? menuItems.filter((item: any) => item.category_id === selectedCategory)
     : [];
 
   const selectedCategoryData = selectedCategory
@@ -127,8 +127,8 @@ const PromoFocusedTemplate = ({
                           </p>
                         )}
                         {settings?.show_order_button !== false && (
-                          <Button 
-                            size="sm" 
+                          <Button
+                            size="sm"
                             className="gap-1 rounded-full"
                             style={{ backgroundColor: primaryColor }}
                           >
@@ -181,12 +181,12 @@ const PromoFocusedTemplate = ({
                   animate={{ opacity: 1, scale: 1 }}
                   className="relative h-48 md:h-64 mx-4 mt-4 rounded-3xl overflow-hidden"
                 >
-                  <img 
-                    src={settings.banner_url} 
-                    alt="Promo Banner" 
+                  <img
+                    src={settings.banner_url}
+                    alt="Promo Banner"
                     className="w-full h-full object-cover"
                   />
-                  <div 
+                  <div
                     className="absolute inset-0"
                     style={{ background: `linear-gradient(135deg, ${primaryColor}CC, ${secondaryColor}99)` }}
                   />
@@ -195,7 +195,7 @@ const PromoFocusedTemplate = ({
                     <h2 className="text-2xl font-bold">{isAr ? 'عروض اليوم' : "Today's Offers"}</h2>
                     <p className="text-white/90">{isAr ? 'خصم 20% على جميع الوجبات' : '20% off on all meals'}</p>
                     {settings?.show_order_button !== false && (
-                      <Button 
+                      <Button
                         className="mt-4 rounded-full px-6"
                         style={{ backgroundColor: 'white', color: primaryColor }}
                       >
@@ -286,7 +286,7 @@ const PromoFocusedTemplate = ({
                           </div>
                         )}
                       </div>
-                      <div 
+                      <div
                         className="absolute inset-0"
                         style={{ background: `linear-gradient(to top, ${primaryColor}DD, transparent 60%)` }}
                       />
@@ -307,7 +307,7 @@ const PromoFocusedTemplate = ({
             {/* Fixed Order Button */}
             {settings?.show_order_button !== false && (
               <div className="fixed bottom-6 left-4 right-4 max-w-md mx-auto">
-                <Button 
+                <Button
                   className="w-full h-14 rounded-full text-lg font-bold shadow-2xl gap-2"
                   style={{ backgroundColor: primaryColor }}
                 >

@@ -25,7 +25,7 @@ const parseItemsFromMessage = (content: string): { text: string; items: ParsedIt
   const itemRegex = /\[([^\]|]+)\|(\d+(?:\.\d+)?)\|([a-f0-9-]+)\]/g;
   const items: ParsedItem[] = [];
   let cleanText = content;
-  
+
   let match;
   while ((match = itemRegex.exec(content)) !== null) {
     items.push({
@@ -35,8 +35,26 @@ const parseItemsFromMessage = (content: string): { text: string; items: ParsedIt
     });
     cleanText = cleanText.replace(match[0], `**${match[1]}** (${match[2]} ر.س)`);
   }
-  
+
   return { text: cleanText, items };
+};
+
+// Safe text renderer - renders **bold** syntax without using dangerouslySetInnerHTML (XSS safe)
+const SafeTextRenderer = ({ text }: { text: string }) => {
+  // Split text by **...** pattern and render as React elements
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+
+  return (
+    <span className="whitespace-pre-wrap">
+      {parts.map((part, index) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          // Remove ** and render as bold
+          return <strong key={index}>{part.slice(2, -2)}</strong>;
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </span>
+  );
 };
 
 const MenuChatbot = ({ menuSlug, lang = 'ar', primaryColor = '#2563EB' }: MenuChatbotProps) => {
@@ -139,7 +157,7 @@ const MenuChatbot = ({ menuSlug, lang = 'ar', primaryColor = '#2563EB' }: MenuCh
               dir={isAr ? 'rtl' : 'ltr'}
             >
               {/* Header */}
-              <div 
+              <div
                 className="flex items-center justify-between px-4 py-3 text-white"
                 style={{ backgroundColor: primaryColor }}
               >
@@ -182,7 +200,7 @@ const MenuChatbot = ({ menuSlug, lang = 'ar', primaryColor = '#2563EB' }: MenuCh
                 {/* Welcome Message */}
                 {messages.length === 0 && (
                   <div className="text-center py-8">
-                    <div 
+                    <div
                       className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
                       style={{ backgroundColor: `${primaryColor}20` }}
                     >
@@ -192,11 +210,11 @@ const MenuChatbot = ({ menuSlug, lang = 'ar', primaryColor = '#2563EB' }: MenuCh
                       {isAr ? 'مرحباً! 👋' : 'Hello! 👋'}
                     </h3>
                     <p className="text-sm text-zinc-500 mb-4">
-                      {isAr 
+                      {isAr
                         ? 'أنا هنا لمساعدتك في اختيار الطبق المناسب. أخبرني عن تفضيلاتك!'
                         : "I'm here to help you choose the perfect dish. Tell me your preferences!"}
                     </p>
-                    
+
                     {/* Quick Actions */}
                     <div className="space-y-2">
                       {quickActions.map((action, index) => (
@@ -215,10 +233,10 @@ const MenuChatbot = ({ menuSlug, lang = 'ar', primaryColor = '#2563EB' }: MenuCh
 
                 {/* Chat Messages */}
                 {messages.map((msg) => (
-                  <MessageBubble 
-                    key={msg.id} 
-                    message={msg} 
-                    isAr={isAr} 
+                  <MessageBubble
+                    key={msg.id}
+                    message={msg}
+                    isAr={isAr}
                     primaryColor={primaryColor}
                     onAddToCart={handleAddToCart}
                   />
@@ -253,8 +271,8 @@ const MenuChatbot = ({ menuSlug, lang = 'ar', primaryColor = '#2563EB' }: MenuCh
                     disabled={isLoading}
                     className="flex-1"
                   />
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={!inputValue.trim() || isLoading}
                     style={{ backgroundColor: primaryColor }}
                     className="shrink-0"
@@ -272,13 +290,13 @@ const MenuChatbot = ({ menuSlug, lang = 'ar', primaryColor = '#2563EB' }: MenuCh
 };
 
 // Message Bubble Component
-const MessageBubble = ({ 
-  message, 
-  isAr, 
+const MessageBubble = ({
+  message,
+  isAr,
   primaryColor,
   onAddToCart,
-}: { 
-  message: ChatMessage; 
+}: {
+  message: ChatMessage;
   isAr: boolean;
   primaryColor: string;
   onAddToCart: (item: ParsedItem) => void;
@@ -298,15 +316,13 @@ const MessageBubble = ({
       <div
         className={cn(
           "max-w-[85%] px-4 py-2 rounded-2xl text-sm",
-          isUser 
-            ? "text-white rounded-br-sm" 
+          isUser
+            ? "text-white rounded-br-sm"
             : "bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-white rounded-bl-sm"
         )}
         style={isUser ? { backgroundColor: primaryColor } : undefined}
       >
-        <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ 
-          __html: text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>') 
-        }} />
+        <SafeTextRenderer text={text} />
       </div>
 
       {/* Suggested Items with Add to Cart */}

@@ -36,9 +36,9 @@ const ClassicGridTemplate = ({
   const primaryColor = settings?.primary_color || '#2563EB';
 
   const visibleCategories = categories.filter((cat: any) => categoryItemCounts[cat.id] > 0);
-  
-  const categoryItems = selectedCategory 
-    ? menuItems.filter((item: any) => item.category === selectedCategory)
+
+  const categoryItems = selectedCategory
+    ? menuItems.filter((item: any) => item.category_id === selectedCategory)
     : [];
 
   const selectedCategoryName = selectedCategory
@@ -47,9 +47,9 @@ const ClassicGridTemplate = ({
 
   const searchResults = searchQuery.trim()
     ? menuItems.filter((item: any) =>
-        item.name_ar?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.name_en?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+      item.name_ar?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.name_en?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
     : null;
 
   return (

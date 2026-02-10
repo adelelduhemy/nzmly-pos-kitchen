@@ -17,6 +17,7 @@ export interface Order {
     notes: string | null;
     created_at: string;
     updated_at: string;
+    version: number; // Added for optimistic locking
     order_items: OrderItem[];
 }
 
@@ -28,6 +29,14 @@ export interface OrderItem {
     unit_price: number;
     total_price: number;
     notes: string | null;
+}
+
+interface RpcResponse {
+    success: boolean;
+    error?: string;
+    order?: any;
+    current_version?: number;
+    current_status?: string;
 }
 
 export const useOrders = () => {
@@ -82,28 +91,36 @@ export const useUpdateOrderStatus = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
-            const { data, error } = await supabase
-                .from('orders')
-                .update({ status })
-                .eq('id', orderId)
-                .select()
-                .single();
+        mutationFn: async ({ orderId, status, expectedVersion }: { orderId: string; status: string; expectedVersion: number }) => {
+            // Use the new RPC with optimistic locking
+            const { data, error } = await supabase.rpc('update_order_status', {
+                p_order_id: orderId,
+                p_new_status: status,
+                p_expected_version: expectedVersion,
+            });
 
             if (error) throw error;
-            
+
+            const result = data as unknown as RpcResponse;
+
+            if (!result.success) {
+                throw new Error(result.error || 'Update failed');
+            }
+
+            const updatedOrder = result.order;
+
             // If order is completed, free the table by table_number
-            if (status === 'completed' && data.table_number) {
+            if (status === 'completed' && updatedOrder.table_number) {
                 await supabase
                     .from('restaurant_tables')
-                    .update({ 
+                    .update({
                         status: 'available',
-                        current_order_id: null 
+                        current_order_id: null
                     })
-                    .eq('table_number', data.table_number);
+                    .eq('table_number', updatedOrder.table_number);
             }
-            
-            return data;
+
+            return updatedOrder;
         },
         onSuccess: (_, variables) => {
             toast.success('Order status updated', {
@@ -113,9 +130,20 @@ export const useUpdateOrderStatus = () => {
             queryClient.invalidateQueries({ queryKey: ['restaurant_tables'] });
         },
         onError: (error: any) => {
-            toast.error('Failed to update order status', {
-                description: error.message,
-            });
+            if (error.message?.includes('Conflict')) {
+                toast.error('Conflict Detected', {
+                    description: 'This order was updated by someone else. Refreshing...',
+                });
+                queryClient.invalidateQueries({ queryKey: ['orders'] });
+            } else if (error.message?.includes('Invalid status transition')) {
+                toast.error('Cannot Update Status', {
+                    description: error.message,
+                });
+            } else {
+                toast.error('Failed to update order status', {
+                    description: error.message,
+                });
+            }
         },
     });
 };

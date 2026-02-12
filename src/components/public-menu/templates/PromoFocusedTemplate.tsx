@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChefHat, Search, Globe, ArrowRight, ShoppingBag, Percent, Star } from 'lucide-react';
+import { ChefHat, Search, Globe, ArrowRight, ShoppingBag, Percent, Star, ShoppingCart, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/utils/formatCurrency';
 import MenuChatbot from '../MenuChatbot';
+import CartDrawer from '../CartDrawer';
+import ItemDetailModal from '../ItemDetailModal';
+import { usePublicCartStore } from '@/store/publicCartStore';
+import { toast } from 'sonner';
 
 interface PromoFocusedTemplateProps {
   settings: any;
@@ -36,6 +40,12 @@ const PromoFocusedTemplate = ({
   const primaryColor = settings?.primary_color || '#EF4444';
   const secondaryColor = settings?.secondary_color || '#F97316';
 
+  const [cartOpen, setCartOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+
+  const addItem = usePublicCartStore((s) => s.addItem);
+  const cartCount = usePublicCartStore((s) => s.getItemCount());
+
   const visibleCategories = categories.filter((cat: any) => categoryItemCounts[cat.id] > 0);
 
   const categoryItems = selectedCategory
@@ -47,6 +57,18 @@ const PromoFocusedTemplate = ({
     : null;
 
   const featuredItems = menuItems.filter((item: any) => item.is_featured);
+
+  const handleQuickAdd = (e: React.MouseEvent, item: any) => {
+    e.stopPropagation();
+    addItem({
+      id: item.id,
+      name_ar: item.name_ar,
+      name_en: item.name_en,
+      price: item.price,
+      image_url: item.image_url ?? undefined,
+    });
+    toast.success(isAr ? `تمت إضافة ${item.name_ar}` : `${item.name_en || item.name_ar} added`);
+  };
 
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950" dir={isAr ? 'rtl' : 'ltr'}>
@@ -87,7 +109,8 @@ const PromoFocusedTemplate = ({
                     initial={{ opacity: 0, x: isAr ? 30 : -30 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    className="flex gap-4 p-4 bg-zinc-50 dark:bg-zinc-900 rounded-2xl"
+                    className="flex gap-4 p-4 bg-zinc-50 dark:bg-zinc-900 rounded-2xl cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                    onClick={() => setSelectedItem(item)}
                   >
                     <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-zinc-200 dark:bg-zinc-800 flex-shrink-0">
                       {item.image_url ? (
@@ -131,6 +154,7 @@ const PromoFocusedTemplate = ({
                             size="sm"
                             className="gap-1 rounded-full"
                             style={{ backgroundColor: primaryColor }}
+                            onClick={(e) => handleQuickAdd(e, item)}
                           >
                             <ShoppingBag className="w-4 h-4" />
                             {isAr ? 'أضف' : 'Add'}
@@ -198,6 +222,10 @@ const PromoFocusedTemplate = ({
                       <Button
                         className="mt-4 rounded-full px-6"
                         style={{ backgroundColor: 'white', color: primaryColor }}
+                        onClick={() => {
+                          const promoItem = featuredItems[0];
+                          if (promoItem) setSelectedItem(promoItem);
+                        }}
                       >
                         <ShoppingBag className="w-4 h-4 mr-2" />
                         {isAr ? 'اطلب الآن' : 'Order Now'}
@@ -233,7 +261,8 @@ const PromoFocusedTemplate = ({
                       <motion.div
                         key={item.id}
                         whileHover={{ scale: 1.02 }}
-                        className="flex-shrink-0 w-40 bg-zinc-50 dark:bg-zinc-900 rounded-2xl overflow-hidden"
+                        className="flex-shrink-0 w-40 bg-zinc-50 dark:bg-zinc-900 rounded-2xl overflow-hidden cursor-pointer"
+                        onClick={() => setSelectedItem(item)}
                       >
                         <div className="h-28 bg-zinc-200 dark:bg-zinc-800">
                           {item.image_url ? (
@@ -310,9 +339,16 @@ const PromoFocusedTemplate = ({
                 <Button
                   className="w-full h-14 rounded-full text-lg font-bold shadow-2xl gap-2"
                   style={{ backgroundColor: primaryColor }}
+                  onClick={() => setCartOpen(true)}
                 >
                   <ShoppingBag className="w-5 h-5" />
-                  {isAr ? 'اطلب الآن' : 'Order Now'}
+                  {cartCount > 0 ? (
+                    <span>
+                      {isAr ? 'إتمام الطلب' : 'Complete Order'} ({cartCount})
+                    </span>
+                  ) : (
+                    <span>{isAr ? 'اطلب الآن' : 'Order Now'}</span>
+                  )}
                 </Button>
               </div>
             )}
@@ -320,8 +356,44 @@ const PromoFocusedTemplate = ({
         )}
       </AnimatePresence>
 
+      {/* Floating Cart Badge (Only if not using fixed bottom button or on items view) */}
+      {cartCount > 0 && selectedCategory && (
+        <motion.button
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={() => setCartOpen(true)}
+          className={`fixed z-40 p-4 rounded-full shadow-2xl text-white ${isAr ? 'right-4 bottom-20' : 'left-4 bottom-20'}`}
+          style={{ backgroundColor: primaryColor }}
+        >
+          <ShoppingCart className="w-6 h-6" />
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+            {cartCount}
+          </span>
+        </motion.button>
+      )}
+
+      {/* Cart Drawer */}
+      <CartDrawer
+        isOpen={cartOpen}
+        onClose={() => setCartOpen(false)}
+        lang={lang}
+        primaryColor={primaryColor}
+        phone={settings?.phone}
+      />
+
+      {/* Item Detail Modal */}
+      <ItemDetailModal
+        item={selectedItem}
+        isOpen={!!selectedItem}
+        onClose={() => setSelectedItem(null)}
+        lang={lang}
+        primaryColor={primaryColor}
+      />
+
       {/* AI Chatbot */}
-      <MenuChatbot lang={lang} primaryColor={primaryColor} />
+      <MenuChatbot lang={lang} primaryColor={primaryColor} menuSlug={settings?.menu_slug} />
     </div>
   );
 };

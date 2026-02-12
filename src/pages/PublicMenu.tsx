@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -77,6 +77,25 @@ const PublicMenu = () => {
   });
 
   const isAr = lang === 'ar';
+
+  // Update Page Title and Meta Tags
+  useEffect(() => {
+    if (settings) {
+      const name = isAr ? settings.restaurant_name_ar : settings.restaurant_name_en;
+      document.title = `${name} | ${isAr ? 'المنيو' : 'Menu'}`;
+
+      // Update meta description
+      let metaDescription = document.querySelector("meta[name='description']");
+      if (!metaDescription) {
+        metaDescription = document.createElement('meta');
+        metaDescription.setAttribute('name', 'description');
+        document.head.appendChild(metaDescription);
+      }
+      metaDescription.setAttribute('content', isAr
+        ? `تصفح منيو ${name} واطلب وجباتك المفضلة أونلاين.`
+        : `Browse ${name} menu and order your favorite meals online.`);
+    }
+  }, [settings, isAr]);
 
   // Calculate item counts per category
   const categoryItemCounts = useMemo(() => {

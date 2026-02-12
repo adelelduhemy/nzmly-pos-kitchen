@@ -1,11 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChefHat } from 'lucide-react';
+import { ChefHat, ShoppingCart, Plus } from 'lucide-react';
 import MenuHeader from '../MenuHeader';
 import CategoryCard from '../CategoryCard';
 import CategoryItemsView from '../CategoryItemsView';
 import MenuFooter from '../MenuFooter';
 import MenuChatbot from '../MenuChatbot';
+import CartDrawer from '../CartDrawer';
+import ItemDetailModal from '../ItemDetailModal';
+import { usePublicCartStore } from '@/store/publicCartStore';
+import { formatCurrency } from '@/utils/formatCurrency';
+import { toast } from 'sonner';
 
 interface ClassicGridTemplateProps {
   settings: any;
@@ -35,6 +40,12 @@ const ClassicGridTemplate = ({
   const isAr = lang === 'ar';
   const primaryColor = settings?.primary_color || '#2563EB';
 
+  const [cartOpen, setCartOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+
+  const addItem = usePublicCartStore((s) => s.addItem);
+  const cartCount = usePublicCartStore((s) => s.getItemCount());
+
   const visibleCategories = categories.filter((cat: any) => categoryItemCounts[cat.id] > 0);
 
   const categoryItems = selectedCategory
@@ -52,6 +63,18 @@ const ClassicGridTemplate = ({
     )
     : null;
 
+  const handleQuickAdd = (e: React.MouseEvent, item: any) => {
+    e.stopPropagation();
+    addItem({
+      id: item.id,
+      name_ar: item.name_ar,
+      name_en: item.name_en,
+      price: item.price,
+      image_url: item.image_url ?? undefined,
+    });
+    toast.success(isAr ? `تمت إضافة ${item.name_ar}` : `${item.name_en || item.name_ar} added`);
+  };
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950" dir={isAr ? 'rtl' : 'ltr'}>
       <AnimatePresence mode="wait">
@@ -63,6 +86,7 @@ const ClassicGridTemplate = ({
             lang={lang}
             primaryColor={primaryColor}
             onBack={() => onSelectCategory(null)}
+            onItemClick={(item) => setSelectedItem(item)}
           />
         ) : (
           <motion.div
@@ -120,30 +144,51 @@ const ClassicGridTemplate = ({
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.05 }}
-                          className="bg-white dark:bg-zinc-900 rounded-2xl shadow-md overflow-hidden"
+                          className="bg-white dark:bg-zinc-900 rounded-2xl shadow-md overflow-hidden group cursor-pointer"
+                          onClick={() => setSelectedItem(item)}
                         >
                           <div className="relative h-40 bg-zinc-100 dark:bg-zinc-800">
                             {item.image_url ? (
                               <img
                                 src={item.image_url}
                                 alt={isAr ? item.name_ar : item.name_en}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                               />
                             ) : (
                               <div className="absolute inset-0 flex items-center justify-center">
                                 <ChefHat className="w-12 h-12 text-zinc-300" />
                               </div>
                             )}
+                            {/* Quick Add */}
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={(e) => handleQuickAdd(e, item)}
+                              className="absolute bottom-3 right-3 w-9 h-9 rounded-full shadow-lg flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                              style={{ backgroundColor: primaryColor }}
+                            >
+                              <Plus className="w-4 h-4" />
+                            </motion.button>
                           </div>
                           <div className="p-4">
                             <h3 className="font-bold text-zinc-800 dark:text-white mb-1">
                               {isAr ? item.name_ar : item.name_en || item.name_ar}
                             </h3>
-                            {settings?.show_prices !== false && (
-                              <p className="text-lg font-bold" style={{ color: primaryColor }}>
-                                {item.price} {isAr ? 'ر.س' : 'SAR'}
-                              </p>
-                            )}
+                            <div className="flex items-center justify-between">
+                              {settings?.show_prices !== false && (
+                                <p className="text-lg font-bold" style={{ color: primaryColor }}>
+                                  {formatCurrency(item.price, lang)}
+                                </p>
+                              )}
+                              <button
+                                onClick={(e) => handleQuickAdd(e, item)}
+                                className="px-3 py-1.5 rounded-lg text-white text-sm font-medium flex items-center gap-1"
+                                style={{ backgroundColor: primaryColor }}
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                {isAr ? 'أضف' : 'Add'}
+                              </button>
+                            </div>
                           </div>
                         </motion.div>
                       ))}
@@ -196,8 +241,44 @@ const ClassicGridTemplate = ({
         )}
       </AnimatePresence>
 
+      {/* Floating Cart Badge */}
+      {cartCount > 0 && (
+        <motion.button
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={() => setCartOpen(true)}
+          className={`fixed z-40 p-4 rounded-full shadow-2xl text-white ${isAr ? 'right-4 bottom-20' : 'left-4 bottom-20'}`}
+          style={{ backgroundColor: primaryColor }}
+        >
+          <ShoppingCart className="w-6 h-6" />
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+            {cartCount}
+          </span>
+        </motion.button>
+      )}
+
+      {/* Cart Drawer */}
+      <CartDrawer
+        isOpen={cartOpen}
+        onClose={() => setCartOpen(false)}
+        lang={lang}
+        primaryColor={primaryColor}
+        phone={settings?.phone}
+      />
+
+      {/* Item Detail Modal */}
+      <ItemDetailModal
+        item={selectedItem}
+        isOpen={!!selectedItem}
+        onClose={() => setSelectedItem(null)}
+        lang={lang}
+        primaryColor={primaryColor}
+      />
+
       {/* AI Chatbot */}
-      <MenuChatbot lang={lang} primaryColor={primaryColor} />
+      <MenuChatbot lang={lang} primaryColor={primaryColor} menuSlug={settings?.menu_slug} />
     </div>
   );
 };

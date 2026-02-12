@@ -23,15 +23,8 @@ export const useUpdateWorkflowStatus = () => {
 
     return useMutation({
         mutationFn: async ({ orderId, status, expectedVersion }: UpdateWorkflowStatusParams) => {
-            // If cancelling order, return stock first
-            if (status === 'cancelled') {
-                try {
-                    await supabase.rpc('return_order_stock', { order_id: orderId });
-                } catch (err) {
-                    console.error('Failed to return stock:', err);
-                    // Continue with cancellation even if stock return fails
-                }
-            }
+            // Stock return for cancellations is now handled atomically
+            // inside the update_order_status RPC (with idempotency guard)
 
             // Use the new RPC with optimistic locking
             const { data, error } = await supabase.rpc('update_order_status', {
@@ -50,17 +43,6 @@ export const useUpdateWorkflowStatus = () => {
             }
 
             const updatedOrder = result.order;
-
-            // If order is completed, free the table
-            if (status === 'completed' && updatedOrder.table_number) {
-                await supabase
-                    .from('restaurant_tables')
-                    .update({
-                        status: 'available',
-                        current_order_id: null
-                    })
-                    .eq('id', updatedOrder.table_number);
-            }
 
             return updatedOrder;
         },

@@ -40,6 +40,7 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { useCloseShift } from '@/hooks/useCloseShift';
 
 interface Expense {
   id: string;
@@ -82,6 +83,7 @@ const FinancialManagement = () => {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === 'ar';
   const { user } = useAuthContext();
+  const closeShift = useCloseShift();
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -320,42 +322,20 @@ const FinancialManagement = () => {
       return;
     }
 
-    try {
-      const { data, error } = await supabase.rpc('close_shift_with_sales', {
-        p_shift_id: currentShift.id,
-        p_closing_cash: parseFloat(closingCash),
-        p_notes: shiftNotes || null,
-      });
-
-      if (error) throw error;
-
-      const result = data as any;
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to close shift');
+    closeShift.mutate(
+      {
+        shiftId: currentShift.id,
+        closingCash: parseFloat(closingCash),
+        notes: shiftNotes || null,
+      },
+      {
+        onSuccess: () => {
+          setClosingCash('');
+          setShiftNotes('');
+          fetchData(); // Refresh local state if needed, though hook invalidates queries
+        },
       }
-
-      toast({
-        title: isAr ? 'تم بنجاح' : 'Success',
-        description: isAr
-          ? `تم إقفال الشيفت • إجمالي المبيعات: ${result.summary.total_sales} ر.س`
-          : `Shift closed • Total sales: SAR ${result.summary.total_sales} `,
-      });
-
-      setClosingCash('');
-      setShiftNotes('');
-      setShiftNotes('');
-      fetchData();
-    } catch (error: any) {
-      console.error('Error closing shift:', error);
-      // Refresh data in case shift state was stale (e.g. already closed)
-      fetchData();
-
-      toast({
-        title: isAr ? 'خطأ' : 'Error',
-        description: error.message || (isAr ? 'فشل في إقفال الشيفت' : 'Failed to close shift'),
-        variant: 'destructive',
-      });
-    }
+    );
   };
 
   const getCategoryLabel = (category: string) => {

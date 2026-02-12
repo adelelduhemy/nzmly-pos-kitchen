@@ -553,7 +553,9 @@ export type Database = {
           payment_method: string | null
           shift_id: string | null
           status: string
+          stock_returned_at: string | null
           subtotal: number
+          table_id: string | null
           table_number: string | null
           total: number
           updated_at: string
@@ -572,7 +574,9 @@ export type Database = {
           payment_method?: string | null
           shift_id?: string | null
           status?: string
+          stock_returned_at?: string | null
           subtotal?: number
+          table_id?: string | null
           table_number?: string | null
           total?: number
           updated_at?: string
@@ -591,7 +595,9 @@ export type Database = {
           payment_method?: string | null
           shift_id?: string | null
           status?: string
+          stock_returned_at?: string | null
           subtotal?: number
+          table_id?: string | null
           table_number?: string | null
           total?: number
           updated_at?: string
@@ -852,6 +858,8 @@ export type Database = {
           instagram: string | null
           is_menu_active: boolean
           logo_url: string | null
+          loyalty_points_per_sar: number
+          loyalty_redemption_value: number
           menu_slug: string | null
           phone: string | null
           primary_color: string | null
@@ -878,6 +886,8 @@ export type Database = {
           instagram?: string | null
           is_menu_active?: boolean
           logo_url?: string | null
+          loyalty_points_per_sar?: number
+          loyalty_redemption_value?: number
           menu_slug?: string | null
           phone?: string | null
           primary_color?: string | null
@@ -904,6 +914,8 @@ export type Database = {
           instagram?: string | null
           is_menu_active?: boolean
           logo_url?: string | null
+          loyalty_points_per_sar?: number
+          loyalty_redemption_value?: number
           menu_slug?: string | null
           phone?: string | null
           primary_color?: string | null
@@ -1245,7 +1257,10 @@ export type Database = {
         Returns: boolean
       }
       is_owner_or_manager: { Args: { _user_id: string }; Returns: boolean }
-      return_order_stock: { Args: { order_id: string }; Returns: void }
+      redeem_loyalty_points: {
+        Args: { p_customer_id: string; p_points: number }
+        Returns: Json
+      }
       update_order_status: {
         Args: {
           p_order_id: string

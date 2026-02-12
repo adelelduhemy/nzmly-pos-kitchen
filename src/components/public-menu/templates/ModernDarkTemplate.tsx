@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChefHat, Search, Globe, ArrowRight, Star } from 'lucide-react';
+import { ChefHat, Search, Globe, ArrowRight, Star, ShoppingCart, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { formatCurrency } from '@/utils/formatCurrency';
 import MenuChatbot from '../MenuChatbot';
+import CartDrawer from '../CartDrawer';
+import ItemDetailModal from '../ItemDetailModal';
+import { usePublicCartStore } from '@/store/publicCartStore';
+import { toast } from 'sonner';
 
 interface ModernDarkTemplateProps {
   settings: any;
@@ -33,6 +37,12 @@ const ModernDarkTemplate = ({
   const isAr = lang === 'ar';
   const primaryColor = settings?.primary_color || '#8B5CF6';
 
+  const [cartOpen, setCartOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+
+  const addItem = usePublicCartStore((s) => s.addItem);
+  const cartCount = usePublicCartStore((s) => s.getItemCount());
+
   const visibleCategories = categories.filter((cat: any) => categoryItemCounts[cat.id] > 0);
 
   const categoryItems = selectedCategory
@@ -44,6 +54,18 @@ const ModernDarkTemplate = ({
     : null;
 
   const featuredItems = menuItems.filter((item: any) => item.is_featured);
+
+  const handleQuickAdd = (e: React.MouseEvent, item: any) => {
+    e.stopPropagation();
+    addItem({
+      id: item.id,
+      name_ar: item.name_ar,
+      name_en: item.name_en,
+      price: item.price,
+      image_url: item.image_url ?? undefined,
+    });
+    toast.success(isAr ? `تمت إضافة ${item.name_ar}` : `${item.name_en || item.name_ar} added`);
+  };
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white" dir={isAr ? 'rtl' : 'ltr'}>
@@ -79,7 +101,7 @@ const ModernDarkTemplate = ({
             </div>
 
             {/* Items Grid */}
-            <div className="max-w-6xl mx-auto px-4 py-8">
+            <div className="max-w-6xl mx-auto px-4 py-8 pb-32">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {categoryItems.map((item: any, index: number) => (
                   <motion.div
@@ -87,7 +109,8 @@ const ModernDarkTemplate = ({
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.08 }}
-                    className="group flex gap-4 bg-zinc-900/50 rounded-2xl p-4 border border-zinc-800 hover:border-zinc-700 transition-all"
+                    className="group flex gap-4 bg-zinc-900/50 rounded-2xl p-4 border border-zinc-800 hover:border-zinc-700 transition-all cursor-pointer"
+                    onClick={() => setSelectedItem(item)}
                   >
                     <div className="relative w-28 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-zinc-800">
                       {item.image_url ? (
@@ -118,11 +141,21 @@ const ModernDarkTemplate = ({
                           </p>
                         )}
                       </div>
-                      {settings?.show_prices !== false && (
-                        <p className="text-xl font-bold mt-2" style={{ color: primaryColor }}>
-                          {formatCurrency(item.price, lang)}
-                        </p>
-                      )}
+                      <div className="flex items-center justify-between mt-2">
+                        {settings?.show_prices !== false && (
+                          <p className="text-xl font-bold" style={{ color: primaryColor }}>
+                            {formatCurrency(item.price, lang)}
+                          </p>
+                        )}
+                        <button
+                          onClick={(e) => handleQuickAdd(e, item)}
+                          className="px-3 py-1.5 rounded-lg text-white text-sm font-medium flex items-center gap-1 transition-opacity hover:opacity-90"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          {isAr ? 'أضف' : 'Add'}
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                 ))}
@@ -195,14 +228,15 @@ const ModernDarkTemplate = ({
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.1 }}
-                        className="flex-shrink-0 w-44"
+                        className="flex-shrink-0 w-44 cursor-pointer group"
+                        onClick={() => setSelectedItem(item)}
                       >
                         <div className="relative h-44 rounded-2xl overflow-hidden mb-3 bg-zinc-800">
                           {item.image_url ? (
                             <img
                               src={item.image_url}
                               alt={isAr ? item.name_ar : item.name_en}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
@@ -220,6 +254,15 @@ const ModernDarkTemplate = ({
                               </p>
                             )}
                           </div>
+                          {/* Quick Add */}
+                          <motion.button
+                            whileTap={{ scale: 0.9 }}
+                            onClick={(e) => handleQuickAdd(e, item)}
+                            className="absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                            style={{ backgroundColor: primaryColor }}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </motion.button>
                         </div>
                       </motion.div>
                     ))}
@@ -281,8 +324,44 @@ const ModernDarkTemplate = ({
         )}
       </AnimatePresence>
 
+      {/* Floating Cart Badge */}
+      {cartCount > 0 && (
+        <motion.button
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={() => setCartOpen(true)}
+          className={`fixed z-40 p-4 rounded-full shadow-2xl text-white ${isAr ? 'right-4 bottom-20' : 'left-4 bottom-20'}`}
+          style={{ backgroundColor: primaryColor }}
+        >
+          <ShoppingCart className="w-6 h-6" />
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+            {cartCount}
+          </span>
+        </motion.button>
+      )}
+
+      {/* Cart Drawer */}
+      <CartDrawer
+        isOpen={cartOpen}
+        onClose={() => setCartOpen(false)}
+        lang={lang}
+        primaryColor={primaryColor}
+        phone={settings?.phone}
+      />
+
+      {/* Item Detail Modal */}
+      <ItemDetailModal
+        item={selectedItem}
+        isOpen={!!selectedItem}
+        onClose={() => setSelectedItem(null)}
+        lang={lang}
+        primaryColor={primaryColor}
+      />
+
       {/* AI Chatbot */}
-      <MenuChatbot lang={lang} primaryColor={primaryColor} />
+      <MenuChatbot lang={lang} primaryColor={primaryColor} menuSlug={settings?.menu_slug} />
     </div>
   );
 };

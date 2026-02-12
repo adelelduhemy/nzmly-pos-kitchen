@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
 interface HeaderProps {
@@ -17,7 +17,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ isCollapsed }) => {
   const { t, i18n } = useTranslation();
-  const { user } = useAuthStore();
+  const { profile } = useAuthContext();
   const isRTL = i18n.language === 'ar';
 
   const toggleLanguage = () => {
@@ -38,7 +38,7 @@ const Header: React.FC<HeaderProps> = ({ isCollapsed }) => {
     >
       <div className="flex items-center gap-4">
         <h1 className="text-lg font-semibold text-foreground">
-          {t('common.welcome')}, {user?.name?.split(' ')[0]}
+          {t('common.welcome')}, {profile?.name?.split(' ')[0]}
         </h1>
       </div>
 
@@ -63,11 +63,11 @@ const Header: React.FC<HeaderProps> = ({ isCollapsed }) => {
             <Button variant="ghost" className="gap-2">
               <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                 <span className="text-sm font-medium text-primary-foreground">
-                  {user?.name?.charAt(0) || 'U'}
+                  {profile?.name?.charAt(0) || 'U'}
                 </span>
               </div>
               <span className="hidden sm:inline font-medium">
-                {user?.name}
+                {profile?.name}
               </span>
             </Button>
           </DropdownMenuTrigger>

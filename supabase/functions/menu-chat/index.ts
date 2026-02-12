@@ -37,6 +37,17 @@ serve(async (req) => {
       );
     }
 
+    // H-04 Fix: Abuse controls — cap input sizes
+    if (typeof message !== 'string' || message.length > 500) {
+      return new Response(
+        JSON.stringify({ error: "Message too long (max 500 characters)" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Cap history to prevent token abuse
+    const safeHistory = Array.isArray(history) ? history.slice(-20) : [];
+
     // Google Gemini API key (stored as Supabase Edge Function secret)
     const GOOGLE_API_KEY = Deno.env.get("nzmly-pos-kitchen");
     if (!GOOGLE_API_KEY) {
@@ -95,7 +106,7 @@ ${JSON.stringify(menuContext, null, 2)}
     const contents = [
       { role: "user", parts: [{ text: systemPrompt }] },
       { role: "model", parts: [{ text: "مرحباً! أنا مساعدك الذكي. كيف يمكنني مساعدتك اليوم؟" }] },
-      ...history.flatMap((msg: { role: string; content: string }) => ({
+      ...safeHistory.flatMap((msg: { role: string; content: string }) => ({
         role: msg.role === "user" ? "user" : "model",
         parts: [{ text: msg.content }]
       })),

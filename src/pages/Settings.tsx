@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { Building2, User, Globe, Moon, Bell, Shield, Loader2, Save } from 'lucide-react';
+import { Building2, User, Globe, Moon, Bell, Shield, Loader2, Save, Star } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +36,10 @@ const Settings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Loyalty settings
+  const [loyaltyPointsPerSar, setLoyaltyPointsPerSar] = useState(1);
+  const [loyaltyRedemptionValue, setLoyaltyRedemptionValue] = useState(0.10);
+
   // Preferences state
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('darkMode') === 'true';
@@ -64,6 +68,8 @@ const Settings = () => {
           setRestaurantNameAr(data.restaurant_name_ar || '');
           setVatNumber((data as any).vat_number || '');
           setBranchCode((data as any).branch_code || '');
+          setLoyaltyPointsPerSar((data as any).loyalty_points_per_sar ?? 1);
+          setLoyaltyRedemptionValue((data as any).loyalty_redemption_value ?? 0.10);
         }
       } catch (error) {
         console.error('Error fetching settings:', error);
@@ -105,6 +111,8 @@ const Settings = () => {
         restaurant_name_ar: restaurantNameAr,
         vat_number: vatNumber,
         branch_code: branchCode,
+        loyalty_points_per_sar: loyaltyPointsPerSar,
+        loyalty_redemption_value: loyaltyRedemptionValue,
       };
 
       if (settingsId) {
@@ -202,6 +210,70 @@ const Settings = () => {
                     onChange={(e) => setBranchCode(e.target.value)}
                     placeholder="JED"
                   />
+                </div>
+              </div>
+              <Button onClick={handleSaveSettings} disabled={saving}>
+                {saving ? (
+                  <Loader2 className="w-4 h-4 animate-spin ltr:mr-2 rtl:ml-2" />
+                ) : (
+                  <Save className="w-4 h-4 ltr:mr-2 rtl:ml-2" />
+                )}
+                {t('common.save')}
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Loyalty Program */}
+      <Card className="card-pos">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Star className="w-5 h-5 text-yellow-500" />
+            {isRTL ? 'برنامج الولاء' : 'Loyalty Program'}
+          </CardTitle>
+          <CardDescription>
+            {isRTL ? 'إعداد نظام نقاط الولاء للعملاء' : 'Configure the customer loyalty points system'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>{isRTL ? 'نقاط لكل ريال' : 'Points per SAR Spent'}</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={loyaltyPointsPerSar}
+                    onChange={(e) => setLoyaltyPointsPerSar(parseInt(e.target.value) || 1)}
+                    placeholder="1"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {isRTL
+                      ? `العميل يحصل على ${loyaltyPointsPerSar} نقطة لكل ريال ينفقه`
+                      : `Customer earns ${loyaltyPointsPerSar} point(s) per SAR spent`}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>{isRTL ? 'قيمة النقطة (ريال)' : 'Point Value (SAR)'}</Label>
+                  <Input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={loyaltyRedemptionValue}
+                    onChange={(e) => setLoyaltyRedemptionValue(parseFloat(e.target.value) || 0.10)}
+                    placeholder="0.10"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {isRTL
+                      ? `100 نقطة = ${(100 * loyaltyRedemptionValue).toFixed(2)} ريال خصم`
+                      : `100 points = SAR ${(100 * loyaltyRedemptionValue).toFixed(2)} discount`}
+                  </p>
                 </div>
               </div>
               <Button onClick={handleSaveSettings} disabled={saving}>

@@ -1,7 +1,9 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, ChefHat, Star } from 'lucide-react';
+import { ArrowRight, ChefHat, Star, Plus } from 'lucide-react';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { usePublicCartStore } from '@/store/publicCartStore';
+import { toast } from 'sonner';
 
 interface MenuItem {
   id: string;
@@ -20,6 +22,7 @@ interface CategoryItemsViewProps {
   lang: 'ar' | 'en';
   primaryColor: string;
   onBack: () => void;
+  onItemClick?: (item: MenuItem) => void;
 }
 
 const CategoryItemsView = ({
@@ -28,8 +31,26 @@ const CategoryItemsView = ({
   lang,
   primaryColor,
   onBack,
+  onItemClick,
 }: CategoryItemsViewProps) => {
   const isAr = lang === 'ar';
+  const addItem = usePublicCartStore((s) => s.addItem);
+
+  const handleQuickAdd = (e: React.MouseEvent, item: MenuItem) => {
+    e.stopPropagation();
+    addItem({
+      id: item.id,
+      name_ar: item.name_ar,
+      name_en: item.name_en,
+      price: item.price,
+      image_url: item.image_url ?? undefined,
+    });
+    toast.success(
+      isAr
+        ? `تمت إضافة ${item.name_ar}`
+        : `${item.name_en || item.name_ar} added`
+    );
+  };
 
   return (
     <motion.div
@@ -62,7 +83,7 @@ const CategoryItemsView = ({
       </div>
 
       {/* Items Grid */}
-      <div className="max-w-6xl mx-auto px-4 py-6">
+      <div className="max-w-6xl mx-auto px-4 py-6 pb-32">
         <AnimatePresence mode="popLayout">
           {items.length === 0 ? (
             <motion.div
@@ -83,7 +104,8 @@ const CategoryItemsView = ({
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="group"
+                  className="group cursor-pointer"
+                  onClick={() => onItemClick?.(item)}
                 >
                   <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300">
                     {/* Image */}
@@ -99,7 +121,7 @@ const CategoryItemsView = ({
                           <ChefHat className="w-16 h-16 text-zinc-300 dark:text-zinc-600" />
                         </div>
                       )}
-                      
+
                       {/* Featured Badge */}
                       {item.is_featured && (
                         <div className="absolute top-3 left-3">
@@ -108,6 +130,17 @@ const CategoryItemsView = ({
                           </div>
                         </div>
                       )}
+
+                      {/* Quick Add Button */}
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={(e) => handleQuickAdd(e, item)}
+                        className="absolute bottom-3 right-3 w-10 h-10 rounded-full shadow-lg flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ backgroundColor: primaryColor }}
+                      >
+                        <Plus className="w-5 h-5" />
+                      </motion.button>
                     </div>
 
                     {/* Content */}
@@ -120,12 +153,22 @@ const CategoryItemsView = ({
                           {isAr ? item.description_ar : item.description_en || item.description_ar}
                         </p>
                       )}
-                      <p
-                        className="text-xl font-bold"
-                        style={{ color: primaryColor }}
-                      >
-                        {formatCurrency(item.price, lang)}
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p
+                          className="text-xl font-bold"
+                          style={{ color: primaryColor }}
+                        >
+                          {formatCurrency(item.price, lang)}
+                        </p>
+                        <button
+                          onClick={(e) => handleQuickAdd(e, item)}
+                          className="px-3 py-1.5 rounded-lg text-white text-sm font-medium flex items-center gap-1 transition-opacity hover:opacity-90"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          {isAr ? 'أضف' : 'Add'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </motion.div>

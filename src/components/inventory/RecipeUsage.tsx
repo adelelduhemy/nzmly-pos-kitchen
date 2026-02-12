@@ -27,6 +27,20 @@ interface RecipeUsageProps {
     itemName: string;
 }
 
+interface RecipeWithMenuItem {
+    id: string;
+    inventory_item_id: string;
+    menu_item_id: string;
+    quantity: number;
+    unit: string;
+    menu_items?: {
+        name_en: string;
+        name_ar: string;
+        price: number;
+        category: string;
+    };
+}
+
 export const RecipeUsage: React.FC<RecipeUsageProps> = ({ itemId, itemName }) => {
     const { t, i18n } = useTranslation();
     const isRTL = i18n.language === 'ar';
@@ -94,7 +108,7 @@ export const RecipeUsage: React.FC<RecipeUsageProps> = ({ itemId, itemName }) =>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {recipes.map((recipe: any) => (
+                                    {recipes.map((recipe: RecipeWithMenuItem) => (
                                         <TableRow key={recipe.id}>
                                             <TableCell className="font-medium">
                                                 {isRTL ? recipe.menu_items?.name_ar : recipe.menu_items?.name_en}

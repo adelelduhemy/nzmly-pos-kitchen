@@ -12,6 +12,7 @@ interface CreateOrderParams {
     total: number;
     paymentMethod: 'cash' | 'card' | 'online';
     customerId?: string | null;
+    idempotencyKey?: string; // M-05 fix: caller can persist this for retry scenarios
     items: Array<{
         menuItemId?: string;
         dishName: string;
@@ -35,16 +36,9 @@ export const useCreateOrder = () => {
                 throw new Error('User not authenticated');
             }
 
-            // Generate idempotency key for this attempt
-            // In a real app, you might want this passed in from the UI level if the UI can retry automatically
-            // But for now, we generate it per mutation call. 
-            // Better: The caller should generate it to handle "retry button" scenarios correctly.
-            // For this implementation, we'll verify if we can move it up, but strictly speaking
-            // the hook invocation starts the intent. To support true retry, we'd need the key passed in params.
-            // Let's stick to generating it here for now, as useMutation retries aren't default for writes.
-            // P.S. The RPC handles the deduplication if we reuse the key.
-
-            const idempotencyKey = crypto.randomUUID();
+            // M-05 Fix: Use caller-provided idempotency key if available (for retry safety)
+            // Otherwise generate a new one for this attempt
+            const idempotencyKey = params.idempotencyKey || crypto.randomUUID();
 
             const { data, error } = await supabase.rpc('create_order_atomic', {
                 p_idempotency_key: idempotencyKey,

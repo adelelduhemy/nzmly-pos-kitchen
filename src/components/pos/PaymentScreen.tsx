@@ -3,17 +3,18 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ArrowLeft, CreditCard, Banknote, Smartphone, Printer, Check } from 'lucide-react';
+import { ArrowLeft, CreditCard, Banknote, Smartphone, Printer, Check, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useOrderStore } from '@/store/orderStore';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { useToast } from '@/hooks/use-toast';
 import { useCreateOrder } from '@/hooks/useCreateOrder';
-import { useTables } from '@/hooks/useTables';
+
 import { supabase } from '@/integrations/supabase/client';
 
 interface PaymentScreenProps {
@@ -31,25 +32,53 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack, initialCustomerId
 
   const { items, getSubtotal, getVAT, getTotal, clearOrder, currentOrderType, selectedTableId } = useOrderStore();
   const createOrder = useCreateOrder();
-  const { updateTableStatus } = useTables();
+
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [amountTendered, setAmountTendered] = useState('');
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>(initialCustomerId || 'none');
+  const [selectedCustomerId] = useState<string>(initialCustomerId || 'none');
   const [isComplete, setIsComplete] = useState(false);
+  const [completedOrder, setCompletedOrder] = useState<any>(null);
 
-  // Fetch customers for linking
-  const { data: customers = [] } = useQuery({
-    queryKey: ['customers'],
+  // Loyalty points state
+  const [usePoints, setUsePoints] = useState(false);
+  const [pointsToRedeem, setPointsToRedeem] = useState(0);
+
+  // Fetch customer details (for loyalty points)
+  const { data: linkedCustomer } = useQuery({
+    queryKey: ['customer_detail', selectedCustomerId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('customers').select('id, name, phone').order('name');
+      if (!selectedCustomerId || selectedCustomerId === 'none') return null;
+      const { data, error } = await supabase
+        .from('customers')
+        .select('id, name, loyalty_points')
+        .eq('id', selectedCustomerId)
+        .single();
       if (error) throw error;
       return data;
     },
+    enabled: !!selectedCustomerId && selectedCustomerId !== 'none',
   });
-  const [completedOrder, setCompletedOrder] = useState<any>(null);
 
-  const total = getTotal();
+  // Fetch loyalty settings
+  const { data: loyaltySettings } = useQuery({
+    queryKey: ['loyalty_settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('restaurant_settings')
+        .select('loyalty_points_per_sar, loyalty_redemption_value')
+        .limit(1)
+        .single();
+      if (error && error.code !== 'PGRST116') throw error;
+      return data || { loyalty_points_per_sar: 1, loyalty_redemption_value: 0.10 };
+    },
+  });
+
+  const redemptionValue = (loyaltySettings as any)?.loyalty_redemption_value ?? 0.10;
+  const customerPoints = (linkedCustomer as any)?.loyalty_points ?? 0;
+  const pointsDiscount = usePoints ? pointsToRedeem * redemptionValue : 0;
+
+  const total = Math.max(0, getTotal() - pointsDiscount);
   const change = parseFloat(amountTendered || '0') - total;
   const quickAmounts = [50, 100, 200, 500];
 
@@ -85,21 +114,26 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack, initialCustomerId
         tableNumber: selectedTableId,
         subtotal: getSubtotal(),
         vat: getVAT(),
-        discount: 0,
-        total: getTotal(),
+        discount: pointsDiscount,
+        total,
         paymentMethod,
         customerId: selectedCustomerId !== 'none' ? selectedCustomerId : null,
         items: orderItems,
       });
 
-      // Update table status to occupied and link to order
-      if (selectedTableId && result.order) {
-        await updateTableStatus({
-          id: selectedTableId,
-          status: 'occupied',
-          orderId: result.order.id,
-        });
+      // Redeem loyalty points if used
+      if (usePoints && pointsToRedeem > 0 && selectedCustomerId !== 'none') {
+        try {
+          await supabase.rpc('redeem_loyalty_points', {
+            p_customer_id: selectedCustomerId,
+            p_points: pointsToRedeem,
+          });
+        } catch (err) {
+          console.error('Failed to redeem points:', err);
+        }
       }
+
+      // Table occupancy is now handled atomically by create_order_atomic RPC
 
       // Store order data for receipt
       setCompletedOrder({
@@ -310,11 +344,76 @@ const PaymentScreen: React.FC<PaymentScreenProps> = ({ onBack, initialCustomerId
                 <span className="text-muted-foreground">{t('common.vat')} (15%)</span>
                 <span>{formatCurrency(getVAT(), i18n.language)}</span>
               </div>
+              {pointsDiscount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span className="flex items-center gap-1">
+                    <Star className="w-3 h-3" />
+                    {isRTL ? `خصم النقاط (${pointsToRedeem})` : `Points Discount (${pointsToRedeem} pts)`}
+                  </span>
+                  <span>-{formatCurrency(pointsDiscount, i18n.language)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-xl font-bold pt-2 border-t border-border">
                 <span>{t('common.total')}</span>
                 <span className="text-primary">{formatCurrency(total, i18n.language)}</span>
               </div>
             </div>
+
+            {/* Loyalty Points Redemption */}
+            {linkedCustomer && customerPoints > 0 && (
+              <div className="mt-4 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Star className="w-4 h-4 text-yellow-500" />
+                    <span className="font-medium text-sm">
+                      {isRTL ? 'استخدام النقاط' : 'Use Loyalty Points'}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      ({customerPoints} {isRTL ? 'متاح' : 'available'})
+                    </span>
+                  </div>
+                  <Switch
+                    checked={usePoints}
+                    onCheckedChange={(checked) => {
+                      setUsePoints(checked);
+                      if (!checked) setPointsToRedeem(0);
+                    }}
+                  />
+                </div>
+                {usePoints && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        max={customerPoints}
+                        value={pointsToRedeem || ''}
+                        onChange={(e) => {
+                          const val = Math.min(parseInt(e.target.value) || 0, customerPoints);
+                          setPointsToRedeem(val);
+                        }}
+                        placeholder={isRTL ? 'عدد النقاط' : 'Points to use'}
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPointsToRedeem(customerPoints)}
+                      >
+                        {isRTL ? 'الكل' : 'Use All'}
+                      </Button>
+                    </div>
+                    {pointsToRedeem > 0 && (
+                      <p className="text-xs text-green-600">
+                        {isRTL
+                          ? `${pointsToRedeem} نقطة = ${formatCurrency(pointsDiscount, i18n.language)} خصم`
+                          : `${pointsToRedeem} points = ${formatCurrency(pointsDiscount, i18n.language)} discount`}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
